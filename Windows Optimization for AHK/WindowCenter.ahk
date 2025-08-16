@@ -1,4 +1,8 @@
 ﻿!c::  ; Alt+C 窗口居中
+    global WindowCenter
+    if (!WindowCenter)
+        return
+
     WinGetPos, X, Y, W, H, A
     SysGet, MonitorWorkArea, MonitorWorkArea
     NewX := MonitorWorkAreaLeft + ((MonitorWorkAreaRight - MonitorWorkAreaLeft) - W) // 2

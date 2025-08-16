@@ -9,6 +9,10 @@ global ww := 0, wh := 0
 
 !LButton::
 {
+    global AltMove
+    if (!AltMove)
+        return
+
     CoordMode, Mouse, Screen
     MouseGetPos, x0, y0, hwnd
     if !hwnd
@@ -23,6 +27,10 @@ return
 ~LButton Up::
 ~Alt Up::
 {
+    global AltMove
+    if (!AltMove)
+        return
+
     if (hook) {
         RemoveMouseHook(hook)
         hook := 0
