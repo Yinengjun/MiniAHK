@@ -138,7 +138,8 @@ return
 LoadFiles(subdir) {
     global BaseFolder, IL
     LV_Delete()
-    IL_Destroy(IL)
+    if (IL)  ; 防止重复销毁报错
+        IL_Destroy(IL)
     IL := IL_Create(40,1,1)
     LV_SetImageList(IL)
 
@@ -146,12 +147,32 @@ LoadFiles(subdir) {
     if !FileExist(folder)
         return
 
-    Loop, Files, %folder%\*, R
+    Loop, Files, %folder%\*   ; 只取当前目录，不递归
     {
         SplitPath, A_LoopFileFullPath, name
+
+        ; 判断是否是快捷方式
+        if (SubStr(A_LoopFileFullPath, -3) = ".lnk") {
+            target := GetShortcutTarget(A_LoopFileFullPath)
+            if (FileExist(target)) {
+                ; 用目标文件的图标，但仍然保留 .lnk 路径
+                iconIndex := IL_Add(IL, target, 0)
+                LV_Add("Icon" iconIndex, name, A_LoopFileFullPath)
+                continue
+            }
+        }
+
+        ; 普通文件/或解析失败时
         iconIndex := IL_Add(IL, A_LoopFileFullPath, 0)
         LV_Add("Icon" iconIndex, name, A_LoopFileFullPath)
     }
+}
+
+; 解析快捷方式目标
+GetShortcutTarget(path) {
+    shell := ComObjCreate("WScript.Shell")
+    sc := shell.CreateShortcut(path)
+    return sc.TargetPath
 }
 
 ; ========================
