@@ -33,8 +33,24 @@ return
 ; ========================
 ; 主界面
 ; ========================
+global GUI_LOCK := false
+
 ShowLauncher:
+    ; 防止快速连续触发
+    if (GUI_LOCK)
+        return
+    GUI_LOCK := true
+
+    ; 暂停自动关闭计时器
+    SetTimer, AutoClose, Off
+
+    ; 销毁旧窗口和旧 ImageList
     Gui, Destroy
+    if (IL) {
+        IL_Destroy(IL)
+        Sleep, 20  ; 给资源释放一点时间
+    }
+
     Gui, +AlwaysOnTop -Caption +ToolWindow
     Gui, Margin, 10, 10
 
@@ -52,16 +68,13 @@ ShowLauncher:
     LV_ModifyCol(2, 0) ; 隐藏路径列
 
     ; 固定窗口按钮 📌
-    Gui, Add, Button, x10 y330 w40 h25 gTogglePin vPinBtn, 📌
+    Gui, Add, Button, x10 y330 w40 h25 gTogglePin vPinBtn, % (IsPinned ? "📍" : "📌")
 
-    global IsPinned := false
-
-    ; 初始化图标
-    global IL
+    ; 初始化 ImageList
     IL := IL_Create(40,1,1)
     LV_SetImageList(IL)
 
-    ; 加载第一个 Tab
+    ; 加载当前 Tab 的文件
     GuiControlGet, CurrentTab
     LoadFiles(CurrentTab)
 
@@ -72,7 +85,11 @@ ShowLauncher:
     x := mx - w//2, y := my - h//2
     Gui, Show, x%x% y%y% w%w% h%h%, 快捷工作台
 
+    ; 重启自动关闭计时器
     SetTimer, AutoClose, 100
+
+    ; 解除锁
+    GUI_LOCK := false
 return
 
 ; ========================
@@ -100,9 +117,37 @@ return
 OpenFile:
     if (A_GuiEvent = "DoubleClick") {
         Row := A_EventInfo
+
+        ; 双击空白处
+        if (Row = 0) {
+            GuiControlGet, CurrentTab
+            folder := BaseFolder "\" CurrentTab
+            if FileExist(folder)
+                Run, explorer.exe "%folder%"
+
+            ; 清除 ListView 所有选中行
+            Loop, % LV_GetCount()
+                LV_Modify(A_Index, "D")
+
+            return
+        }
+
+        ; 双击文件或快捷方式
         LV_GetText(name, Row, 1)
         LV_GetText(path, Row, 2)
-        Run, %path%
+
+        if (path = "" || !FileExist(path)) {
+            MsgBox, 48, 错误, 文件不存在或快捷方式无效：`n%name%
+            return
+        }
+
+        ; 判断是否是文件夹
+        if (FileExist(path "\.")) {
+            Run, explorer.exe "%path%"
+        } else {
+            Run, %path%
+        }
+
         if (!IsPinned)
             Gui, Destroy
     }
@@ -176,6 +221,42 @@ GetShortcutTarget(path) {
 }
 
 ; ========================
+; 添加文件（快捷方式）
+; ========================
+MenuAddFiles:
+    GuiControlGet, CurrentTab
+    folder := BaseFolder "\" CurrentTab
+
+    ; 弹出多文件选择对话框
+    FileSelectFile, files, M, , 选择文件, 所有文件 (*.*)
+    if (ErrorLevel)
+        return
+
+    ; 支持多文件
+    Loop, Parse, files, `n
+    {
+        file := A_LoopField
+        SplitPath, file, name, dir, ext, name_no_ext, drive
+        target := folder "\" name
+
+        if (ext = "lnk") {
+            ; 已经是快捷方式，直接复制
+            FileCopy, %file%, %target%, 1
+        } else {
+            ; 生成快捷方式
+            lnkPath := folder "\" name_no_ext ".lnk"
+            shell := ComObjCreate("WScript.Shell")
+            sc := shell.CreateShortcut(lnkPath)
+            sc.TargetPath := file
+            sc.Save()
+        }
+    }
+
+    ; 重新加载文件列表
+    LoadFiles(CurrentTab)
+return
+
+; ========================
 ; 右键菜单事件
 ; ========================
 GuiContextMenu:
@@ -196,6 +277,7 @@ GuiContextMenu:
         GuiControlGet, CurrentTab
         folder := BaseFolder "\" CurrentTab
         Menu, BlankMenu, Add, 打开当前文件夹, MenuOpenCurrentFolder
+        Menu, BlankMenu, Add, 添加文件（快捷方式）, MenuAddFiles
         Menu, BlankMenu, Show, %mx% %my%
     }
 return
