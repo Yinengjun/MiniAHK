@@ -4,7 +4,7 @@
 ; ------------------------
 ; 模块开关变量
 ; ------------------------
-global AltMove := true
+global AltMove
 global hwnd := 0
 global hook := 0
 global dragging := false

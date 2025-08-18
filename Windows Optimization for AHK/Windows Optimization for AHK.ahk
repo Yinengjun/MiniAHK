@@ -8,12 +8,14 @@ SetWorkingDir %A_ScriptDir%  ; 设置工作目录为脚本所在目录
 ; ========================
 ; 全局功能开关
 ; ========================
-global PastePureText  := true
-global WindowOnTop    := true
-global WindowCenter   := true
-global AltMove        := true
-;global QuickWorkbench := true
-global MasterSwitch   := true   ; 总开关
+global PastePureText     := true
+global WindowOnTop       := true
+global WindowCenter      := true
+global AltMove           := true
+;global QuickWorkbench   := true
+global MinimizeWindow    := true
+global BorderlessWindow  := true
+global MasterSwitch      := true   ; 总开关
 
 ; ========================
 ; 托盘菜单
@@ -26,7 +28,8 @@ Menu, Tray, Add, WindowOnTop (Ctrl+Shift+E), Toggle_WindowOnTop
 Menu, Tray, Add, WindowCenter (Alt+C), Toggle_WindowCenter
 Menu, Tray, Add, AltMove (Alt+LeftButton), Toggle_AltMove
 ;Menu, Tray, Add, QuickWorkbench (Alt+Q), Toggle_QuickWorkbench
-Menu, Tray, Add, Minimize Window (Alt+A / Alt+M), Toggle_MinimizeWindow
+Menu, Tray, Add, MinimizeWindow (Alt+A / Alt+M), Toggle_MinimizeWindow
+Menu, Tray, Add, BorderlessWindow (Alt+B), Toggle_BorderlessWindow
 
 Menu, Tray, Add
 Menu, Tray, Add, Restart Program, RestartScript
@@ -44,6 +47,7 @@ UpdateMenu()
 #Include %A_ScriptDir%\AltMove.ahk
 ;#Include %A_ScriptDir%\QuickWorkbench.ahk
 #Include %A_ScriptDir%\MinimizeWindow.ahk
+#Include %A_ScriptDir%\BorderlessWindow.ahk
 
 return  ; 主线程到此结束，等待事件
 
@@ -85,9 +89,14 @@ UpdateMenu() {
 ;        Menu, Tray, UnCheck, QuickWorkbench (Alt+Q)
 
     if (MasterSwitch && MinimizeWindow)
-        Menu, Tray, Check, Minimize Window (Alt+A / Alt+M)
+        Menu, Tray, Check, MinimizeWindow (Alt+A / Alt+M)
     else
-        Menu, Tray, UnCheck, Minimize Window (Alt+A / Alt+M)
+        Menu, Tray, UnCheck, MinimizeWindow (Alt+A / Alt+M)
+
+    if (MasterSwitch && BorderlessWindow)
+        Menu, Tray, Check, BorderlessWindow (Alt+B)
+    else
+        Menu, Tray, UnCheck, BorderlessWindow (Alt+B)
 
 }
 
@@ -129,6 +138,11 @@ return
 
 Toggle_MinimizeWindow:
     MinimizeWindow := !MinimizeWindow
+    UpdateMenu()
+return
+
+Toggle_BorderlessWindow:
+    BorderlessWindow := !BorderlessWindow
     UpdateMenu()
 return
 

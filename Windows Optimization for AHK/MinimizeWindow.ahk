@@ -2,14 +2,7 @@
 #SingleInstance Force
 SetWorkingDir %A_ScriptDir%
 
-; ------------------------
-; 全局开关变量
-; ------------------------
-global MinimizeWindow := true
-
-; ------------------------
-; 热键绑定
-; ------------------------
+global MinimizeWindow
 
 ; Alt + A -> 最小化除当前窗口外的所有窗口
 !a::
