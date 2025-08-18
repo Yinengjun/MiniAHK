@@ -1,16 +1,26 @@
 ﻿#NoEnv
 #SingleInstance force
 
+; ------------------------
+; 模块开关变量
+; ------------------------
+global AltMove := true
 global hwnd := 0
 global hook := 0
+global dragging := false
 global x0 := 0, y0 := 0
 global wx := 0, wy := 0
 global ww := 0, wh := 0
 
+; ------------------------
+; Alt + 左键拖动窗口
+; ------------------------
 !LButton::
 {
-    global AltMove
-    if (!AltMove)
+    if (!AltMove || !MasterSwitch)
+        return
+
+    if (dragging)  ; 已经在拖动中，不重复安装钩子
         return
 
     CoordMode, Mouse, Screen
@@ -19,25 +29,27 @@ global ww := 0, wh := 0
         return
 
     WinGetPos, wx, wy, ww, wh, ahk_id %hwnd%
+
     ; 安装鼠标钩子
     hook := SetMouseHook()
+    dragging := true
 }
 return
 
 ~LButton Up::
 ~Alt Up::
 {
-    global AltMove
-    if (!AltMove)
-        return
-
-    if (hook) {
+    if (dragging) {
         RemoveMouseHook(hook)
         hook := 0
+        dragging := false
     }
 }
 return
 
+; ------------------------
+; 钩子函数
+; ------------------------
 SetMouseHook() {
     return DllCall("SetWindowsHookEx", "int", 14, "ptr", RegisterCallback("MouseProc", "Fast"), "ptr", 0, "uint", 0, "ptr")
 }
@@ -47,10 +59,10 @@ RemoveMouseHook(h) {
 }
 
 MouseProc(nCode, wParam, lParam) {
-    global hwnd, x0, y0, wx, wy, ww, wh
+    global hwnd, x0, y0, wx, wy, ww, wh, dragging
 
     if (nCode >= 0) {
-        if (wParam = 0x200) {
+        if (wParam = 0x200) {  ; WM_MOUSEMOVE
             mouseX := NumGet(lParam + 0, "Int")
             mouseY := NumGet(lParam + 4, "Int")
 

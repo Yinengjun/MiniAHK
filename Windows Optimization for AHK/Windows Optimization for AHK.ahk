@@ -26,6 +26,7 @@ Menu, Tray, Add, WindowOnTop (Ctrl+Shift+E), Toggle_WindowOnTop
 Menu, Tray, Add, WindowCenter (Alt+C), Toggle_WindowCenter
 Menu, Tray, Add, AltMove (Alt+LeftButton), Toggle_AltMove
 ;Menu, Tray, Add, QuickWorkbench (Alt+Q), Toggle_QuickWorkbench
+Menu, Tray, Add, Minimize Window (Alt+A / Alt+M), Toggle_MinimizeWindow
 
 Menu, Tray, Add
 Menu, Tray, Add, Restart Program, RestartScript
@@ -42,6 +43,7 @@ UpdateMenu()
 #Include %A_ScriptDir%\WindowCenter.ahk
 #Include %A_ScriptDir%\AltMove.ahk
 ;#Include %A_ScriptDir%\QuickWorkbench.ahk
+#Include %A_ScriptDir%\MinimizeWindow.ahk
 
 return  ; 主线程到此结束，等待事件
 
@@ -81,6 +83,12 @@ UpdateMenu() {
 ;        Menu, Tray, Check, QuickWorkbench (Alt+Q)
 ;    else
 ;        Menu, Tray, UnCheck, QuickWorkbench (Alt+Q)
+
+    if (MasterSwitch && MinimizeWindow)
+        Menu, Tray, Check, Minimize Window (Alt+A / Alt+M)
+    else
+        Menu, Tray, UnCheck, Minimize Window (Alt+A / Alt+M)
+
 }
 
 ; ========================
@@ -118,6 +126,11 @@ return
 ;    QuickWorkbench := !QuickWorkbench
 ;    UpdateMenu()
 ;return
+
+Toggle_MinimizeWindow:
+    MinimizeWindow := !MinimizeWindow
+    UpdateMenu()
+return
 
 ; ========================
 ; 程序控制
