@@ -16,6 +16,7 @@ global AltMove
 global MinimizeWindow
 global BorderlessWindow
 global SwitchProgramWindows
+global WindowSize
 global MasterSwitch  ; 总开关
 ;global QuickWorkbench   := true
 
@@ -27,7 +28,8 @@ InitConfig()
 InitConfig() {
     global ConfigFile
     global PastePureText, WindowOnTop, WindowCenter, AltMove
-    global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, MasterSwitch
+    global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
+    global MasterSwitch
 
     ; 如果配置文件不存在，则生成默认配置
     if !FileExist(ConfigFile)
@@ -39,6 +41,7 @@ InitConfig() {
         IniWrite, 1, %ConfigFile%, Settings, MinimizeWindow
         IniWrite, 1, %ConfigFile%, Settings, BorderlessWindow
         IniWrite, 1, %ConfigFile%, Settings, SwitchProgramWindows
+        IniWrite, 1, %ConfigFile%, Settings, WindowSize
         IniWrite, 1, %ConfigFile%, Settings, MasterSwitch
     }
 
@@ -64,6 +67,9 @@ InitConfig() {
     IniRead, SwitchProgramWindows, %ConfigFile%, Settings, SwitchProgramWindows, 1
     SwitchProgramWindows := (SwitchProgramWindows = 1)
 
+    IniRead, WindowSize, %ConfigFile%, Settings, WindowSize, 1
+    WindowSize := (WindowSize = 1)
+
     IniRead, MasterSwitch, %ConfigFile%, Settings, MasterSwitch, 1
     MasterSwitch := (MasterSwitch = 1)
 }
@@ -83,6 +89,7 @@ SaveConfig() {
     IniWrite, % MinimizeWindow ? 1 : 0, %ConfigFile%, Settings, MinimizeWindow
     IniWrite, % BorderlessWindow ? 1 : 0, %ConfigFile%, Settings, BorderlessWindow
     IniWrite, % SwitchProgramWindows ? 1 : 0, %ConfigFile%, Settings, SwitchProgramWindows
+    IniWrite, % WindowSize ? 1 : 0, %ConfigFile%, Settings, WindowSize
     IniWrite, % MasterSwitch ? 1 : 0, %ConfigFile%, Settings, MasterSwitch
 }
 
@@ -100,6 +107,7 @@ Menu, Tray, Add, 移动窗口 (Alt+左键), Toggle_AltMove
 Menu, Tray, Add, 最小化窗口 (Alt+A / Alt+M), Toggle_MinimizeWindow
 Menu, Tray, Add, 无边框化窗口 (Alt+B), Toggle_BorderlessWindow
 Menu, Tray, Add, 切换程序窗口 (Ctrl+Alt+鼠标滚轮), Toggle_SwitchProgramWindows
+Menu, Tray, Add, 修改窗口尺寸 (Alt+Z), Toggle_WindowSize
 
 Menu, Tray, Add
 Menu, Tray, Add, 重启程序, RestartScript
@@ -119,6 +127,7 @@ UpdateMenu()
 #Include %A_ScriptDir%\MinimizeWindow.ahk
 #Include %A_ScriptDir%\BorderlessWindow.ahk
 #Include %A_ScriptDir%\SwitchProgramWindows.ahk
+#Include %A_ScriptDir%\WindowSize.ahk
 
 return  ; 主线程到此结束，等待事件
 
@@ -174,7 +183,12 @@ UpdateMenu() {
     else
         Menu, Tray, UnCheck, 切换程序窗口 (Ctrl+Alt+鼠标滚轮)   
 
-    SaveConfig() 
+    if (MasterSwitch && WindowSize)
+        Menu, Tray, Check, 修改窗口尺寸 (Alt+Z)
+    else
+        Menu, Tray, UnCheck, 修改窗口尺寸 (Alt+Z)
+
+    SaveConfig()
 
 }
 
@@ -226,6 +240,11 @@ return
 
 Toggle_SwitchProgramWindows:
     SwitchProgramWindows := !SwitchProgramWindows
+    UpdateMenu()
+return
+
+Toggle_WindowSize:
+    WindowSize := !WindowSize
     UpdateMenu()
 return
 
