@@ -6,6 +6,8 @@
 SetWorkingDir %A_ScriptDir%  ; 设置工作目录为脚本所在目录
 ConfigFile = %A_ScriptDir%\config.ini  ; 配置文件路径
 
+global PresetSection := "WindowSizePresets"  ; WindowSize.ahk 所需的全局变量
+
 ; ========================
 ; 全局功能开关
 ; ========================
@@ -17,6 +19,7 @@ global MinimizeWindow
 global BorderlessWindow
 global SwitchProgramWindows
 global WindowSize
+global PreventHibernation
 global MasterSwitch  ; 总开关
 ;global QuickWorkbench   := true
 
@@ -29,6 +32,7 @@ InitConfig() {
     global ConfigFile
     global PastePureText, WindowOnTop, WindowCenter, AltMove
     global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
+    global PreventHibernation
     global MasterSwitch
 
     ; 如果配置文件不存在，则生成默认配置
@@ -42,6 +46,7 @@ InitConfig() {
         IniWrite, 1, %ConfigFile%, Settings, BorderlessWindow
         IniWrite, 1, %ConfigFile%, Settings, SwitchProgramWindows
         IniWrite, 1, %ConfigFile%, Settings, WindowSize
+        IniWrite, 0, %ConfigFile%, Settings, PreventHibernation
         IniWrite, 1, %ConfigFile%, Settings, MasterSwitch
     }
 
@@ -70,6 +75,12 @@ InitConfig() {
     IniRead, WindowSize, %ConfigFile%, Settings, WindowSize, 1
     WindowSize := (WindowSize = 1)
 
+    IniRead, PreventHibernation, %ConfigFile%, Settings, PreventHibernation, 0
+    PreventHibernation := (PreventHibernation = 1)
+
+    ; 立即同步到PreventHibernation
+    SetPreventHibernation(PreventHibernation)
+
     IniRead, MasterSwitch, %ConfigFile%, Settings, MasterSwitch, 1
     MasterSwitch := (MasterSwitch = 1)
 }
@@ -90,6 +101,7 @@ SaveConfig() {
     IniWrite, % BorderlessWindow ? 1 : 0, %ConfigFile%, Settings, BorderlessWindow
     IniWrite, % SwitchProgramWindows ? 1 : 0, %ConfigFile%, Settings, SwitchProgramWindows
     IniWrite, % WindowSize ? 1 : 0, %ConfigFile%, Settings, WindowSize
+    IniWrite, % PreventHibernation ? 1 : 0, %ConfigFile%, Settings, PreventHibernation
     IniWrite, % MasterSwitch ? 1 : 0, %ConfigFile%, Settings, MasterSwitch
 }
 
@@ -108,6 +120,7 @@ Menu, Tray, Add, 最小化窗口 (Alt+A / Alt+M), Toggle_MinimizeWindow
 Menu, Tray, Add, 无边框化窗口 (Alt+B), Toggle_BorderlessWindow
 Menu, Tray, Add, 切换程序窗口 (Ctrl+Alt+鼠标滚轮), Toggle_SwitchProgramWindows
 Menu, Tray, Add, 修改窗口尺寸 (Alt+Z), Toggle_WindowSize
+Menu, Tray, Add, 防止休眠, Toggle_PreventHibernation
 
 Menu, Tray, Add
 Menu, Tray, Add, 重启程序, RestartScript
@@ -128,6 +141,7 @@ UpdateMenu()
 #Include %A_ScriptDir%\BorderlessWindow.ahk
 #Include %A_ScriptDir%\SwitchProgramWindows.ahk
 #Include %A_ScriptDir%\WindowSize.ahk
+#Include %A_ScriptDir%\PreventHibernation.ahk
 
 return  ; 主线程到此结束，等待事件
 
@@ -188,6 +202,19 @@ UpdateMenu() {
     else
         Menu, Tray, UnCheck, 修改窗口尺寸 (Alt+Z)
 
+    ; 防止休眠菜单复选状态
+    if (MasterSwitch && PreventHibernation)
+        Menu, Tray, Check, 防止休眠
+    else
+        Menu, Tray, UnCheck, 防止休眠
+
+    ; ===== 响应式同步防休眠状态 =====
+    ; 如果总开关关闭，则强制关闭防休眠
+    if (!MasterSwitch && PreventHibernation) {
+        PreventHibernation := false
+        SetPreventHibernation(false)
+    }
+
     SaveConfig()
 
 }
@@ -246,6 +273,14 @@ return
 Toggle_WindowSize:
     WindowSize := !WindowSize
     UpdateMenu()
+return
+
+Toggle_PreventHibernation:
+    PreventHibernation := !PreventHibernation
+    UpdateMenu()
+    
+    ; 调用子脚本接口，让防休眠立即生效
+    SetPreventHibernation(PreventHibernation)
 return
 
 ; ========================

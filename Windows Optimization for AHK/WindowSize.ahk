@@ -75,6 +75,7 @@ ShowPresetMenu() {
     Menu, WSMenu, Show, %x%, %y%
 }
 
+; 菜单处理
 WS_MenuHandler:
     global MenuItemToIndex
     item := A_ThisMenuItem
@@ -123,6 +124,7 @@ ApplyPreset(idx) {
     WinMove, ahk_id %hWnd%,, x, y, p.w, p.h
 }
 
+; 确保配置文件存在
 EnsureIniReady() {
     global ConfigFile, PresetSection
     if !FileExist(ConfigFile)
@@ -136,6 +138,7 @@ EnsureIniReady() {
     }
 }
 
+; 加载预设
 LoadPresets() {
     global ConfigFile, PresetSection, Presets
     Presets := Object()
@@ -153,6 +156,7 @@ LoadPresets() {
     }
 }
 
+; 保存预设
 SavePresets() {
     global ConfigFile, PresetSection, Presets
     IniDelete, %ConfigFile%, %PresetSection%
@@ -199,6 +203,7 @@ OpenAddPresetGUI() {
     Gui, AddGui:Show,, 添加预设
 }
 
+; 添加预设
 AddGuiSave:
     Gui, AddGui:Submit, NoHide
     name := PresetName
@@ -230,11 +235,13 @@ AddGuiSave:
     ShowPresetMenu()
 return
 
+; 取消
 AddGuiCancel:
 AddGuiClose:
     Gui, AddGui:Destroy
 return
 
+; 添加或更新预设
 AddOrUpdatePreset(name, w, h) {
     global Presets
     for k, p in Presets {
@@ -269,6 +276,7 @@ OpenDeletePresetGUI() {
     Gui, DeleteGui:Show,, 删除预设
 }
 
+; 删除预设
 DeleteGuiApply:
     Gui, DeleteGui:Submit, NoHide
     global Presets
@@ -288,11 +296,11 @@ DeleteGuiApply:
     ShowPresetMenu()
 return
 
+; 取消删除
 DeleteGuiCancel:
 DeleteGuiClose:
     Gui, DeleteGui:Destroy
 return
-
 
 ; ========================
 ; 排序 GUI
@@ -310,6 +318,7 @@ OpenSortGUI() {
     Gui, SortGui:Show,, 排序选项
 }
 
+; 应用排序
 SortGuiApply:
     Gui, SortGui:Submit, NoHide
     DoSortPresets(SortKey, SortDesc)
@@ -319,11 +328,13 @@ SortGuiApply:
     ShowPresetMenu()
 return
 
+; 取消排序
 SortGuiCancel:
 SortGuiClose:
     Gui, SortGui:Destroy
 return
 
+; 排序函数
 DoSortPresets(keyLabel, isDesc) {
     global Presets
     arr := Presets
@@ -350,6 +361,7 @@ DoSortPresets(keyLabel, isDesc) {
     Presets := newArr
 }
 
+; 获取预设属性值
 GetKeyValue(p, keyLabel) {
     if (keyLabel = "名称")
         return p.name
@@ -361,6 +373,7 @@ GetKeyValue(p, keyLabel) {
         return p.w * p.h
 }
 
+; 比较函数
 CompareValues(a, b, keyLabel) {
     if (keyLabel = "名称") {
         StringLower, a, a
@@ -376,6 +389,7 @@ CompareValues(a, b, keyLabel) {
     }
 }
 
+; 插入元素
 InsertAt(ByRef arr, pos, val) {
     len := GetArrayCount(arr)
     if (pos < 1)
@@ -391,6 +405,7 @@ InsertAt(ByRef arr, pos, val) {
     arr[pos] := val
 }
 
+; 获取数组元素个数
 GetArrayCount(arr) {
     count := 0
     for k, v in arr
