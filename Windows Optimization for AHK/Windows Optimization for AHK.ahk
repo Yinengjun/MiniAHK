@@ -24,6 +24,12 @@ global MasterSwitch  ; 总开关
 ;global QuickWorkbench   := true
 
 ; ========================
+; 设置窗口相关变量
+; ========================
+global SettingsGuiVisible := false
+global CurrentTab := 1
+
+; ========================
 ; 初始化
 ; ========================
 InitConfig()
@@ -109,6 +115,8 @@ SaveConfig() {
 ; 托盘菜单
 ; ========================
 Menu, Tray, NoStandard
+Menu, Tray, Add, 设置, ShowSettingsWindow
+Menu, Tray, Add
 Menu, Tray, Add, 总开关, Toggle_MasterSwitch
 Menu, Tray, Add
 Menu, Tray, Add, 粘贴纯文本 (Ctrl+Shift+V), Toggle_PastePureText
@@ -128,6 +136,210 @@ Menu, Tray, Add, 退出, ExitScript
 
 ; 初始化菜单状态
 UpdateMenu()
+
+; ========================
+; 托盘图标双击事件（打开设置窗口）
+; ========================
+OnMessage(0x404, "AHK_NOTIFYICON")
+AHK_NOTIFYICON(wParam, lParam, msg, hwnd) {
+    if (lParam = 0x203) { ; WM_LBUTTONDBLCLK
+        ShowSettingsWindow()
+    }
+}
+
+; ========================
+; 设置窗口
+; ========================
+ShowSettingsWindow() {
+    global SettingsGuiVisible, CurrentTab
+    
+    if (SettingsGuiVisible) {
+        Gui, Settings:Show
+        return
+    }
+    
+    SettingsGuiVisible := true
+    
+    ; 创建设置窗口
+    Gui, Settings:New, +Resize +MaximizeBox +MinimizeBox, 程序设置
+    Gui, Settings:Font, s10
+    
+    ; 标签页控件
+    Gui, Settings:Add, Tab3, x10 y10 w500 h350 vTabControl gTabChange, 基本设置|高级设置|关于
+    
+    ; ========================
+    ; 基本设置标签页
+    ; ========================
+    Gui, Settings:Tab, 基本设置
+    
+    ; 总开关
+    Gui, Settings:Add, GroupBox, x20 y40 w480 h50, 总开关
+    Gui, Settings:Add, Checkbox, x30 y60 w100 h20 vMasterSwitchCheck gMasterSwitchChange, 启用所有功能
+    
+    ; 功能开关组
+    Gui, Settings:Add, GroupBox, x20 y100 w480 h240, 功能模块
+    
+    ; 第一列
+    Gui, Settings:Add, Checkbox, x30 y120 w200 h20 vPastePureTextCheck gPastePureTextChange, 粘贴纯文本 (Ctrl+Shift+V)
+    Gui, Settings:Add, Checkbox, x30 y145 w200 h20 vWindowOnTopCheck gWindowOnTopChange, 窗口置顶 (Ctrl+Shift+E)
+    Gui, Settings:Add, Checkbox, x30 y170 w200 h20 vWindowCenterCheck gWindowCenterChange, 窗口居中 (Alt+C)
+    Gui, Settings:Add, Checkbox, x30 y195 w200 h20 vAltMoveCheck gAltMoveChange, 移动窗口 (Alt+左键)
+    Gui, Settings:Add, Checkbox, x30 y220 w200 h20 vMinimizeWindowCheck gMinimizeWindowChange, 最小化窗口 (Alt+A/M)
+    
+    ; 第二列
+    Gui, Settings:Add, Checkbox, x270 y120 w200 h20 vBorderlessWindowCheck gBorderlessWindowChange, 无边框化窗口 (Alt+B)
+    Gui, Settings:Add, Checkbox, x270 y145 w200 h20 vSwitchProgramWindowsCheck gSwitchProgramWindowsChange, 切换程序窗口
+    Gui, Settings:Add, Checkbox, x270 y170 w200 h20 vWindowSizeCheck gWindowSizeChange, 修改窗口尺寸 (Alt+Z)
+    Gui, Settings:Add, Checkbox, x270 y195 w200 h20 vPreventHibernationCheck gPreventHibernationChange, 防止休眠
+    
+    ; 功能说明
+    Gui, Settings:Add, Text, x30 y250 w440 h80 +Wrap, 提示：`n• 总开关关闭时，所有功能将被禁用`n• 快捷键功能需要对应的功能模块启用才能生效`n• 防止休眠功能会阻止系统自动进入休眠状态`n• 双击托盘图标可快速打开此设置窗口
+    
+    ; ========================
+    ; 高级设置标签页
+    ; ========================
+    Gui, Settings:Tab, 高级设置
+    Gui, Settings:Add, Text, x20 y40 w480 h50 +Center, 高级设置功能
+    Gui, Settings:Add, Text, x20 y100 w480 h100 +Wrap +Center, 更多高级配置选项，`n如快捷键自定义、窗口尺寸预设等功能。
+    
+    ; ========================
+    ; 关于标签页
+    ; ========================
+    Gui, Settings:Tab, 关于
+    Gui, Settings:Add, Text, x20 y40 w480 h30 +Center, Windows Optimization for AHK
+    Gui, Settings:Add, Text, x20 y80 w480 h200 +Wrap +Center, 版本：1.0`n`n这是一个集成多种功能的AutoHotkey脚本。`n`n功能包括：`n• 纯文本粘贴`n• 窗口置顶与居中`n• 窗口移动与调整`n• 无边框窗口`n• 程序窗口切换`n• 防止系统休眠`n`n作者：Yi`n更新日期：2025年
+
+    ; 更新界面状态
+    UpdateSettingsUI()
+    
+    ; 显示窗口
+    Gui, Settings:Show, w520 h410
+    
+    return
+    
+    SettingsGuiClose:
+    SettingsGuiEscape:
+        Gui, Settings:Destroy
+        SettingsGuiVisible := false
+    return
+}
+
+; ========================
+; 标签页切换事件
+; ========================
+TabChange:
+    Gui, Settings:Submit, NoHide
+    CurrentTab := TabControl
+return
+
+; ========================
+; 更新设置界面状态
+; ========================
+UpdateSettingsUI() {
+    global MasterSwitch, PastePureText, WindowOnTop, WindowCenter, AltMove
+    global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize, PreventHibernation
+    
+    ; 更新复选框状态
+    GuiControl, Settings:, MasterSwitchCheck, %MasterSwitch%
+    
+    ; 子功能复选框状态（受总开关影响）
+    GuiControl, Settings:, PastePureTextCheck, % (MasterSwitch && PastePureText)
+    GuiControl, Settings:, WindowOnTopCheck, % (MasterSwitch && WindowOnTop)
+    GuiControl, Settings:, WindowCenterCheck, % (MasterSwitch && WindowCenter)
+    GuiControl, Settings:, AltMoveCheck, % (MasterSwitch && AltMove)
+    GuiControl, Settings:, MinimizeWindowCheck, % (MasterSwitch && MinimizeWindow)
+    GuiControl, Settings:, BorderlessWindowCheck, % (MasterSwitch && BorderlessWindow)
+    GuiControl, Settings:, SwitchProgramWindowsCheck, % (MasterSwitch && SwitchProgramWindows)
+    GuiControl, Settings:, WindowSizeCheck, % (MasterSwitch && WindowSize)
+    GuiControl, Settings:, PreventHibernationCheck, % (MasterSwitch && PreventHibernation)
+    
+    ; 根据总开关状态启用/禁用子功能控件
+    EnableState := MasterSwitch ? "Enable" : "Disable"
+    GuiControl, Settings:%EnableState%, PastePureTextCheck
+    GuiControl, Settings:%EnableState%, WindowOnTopCheck
+    GuiControl, Settings:%EnableState%, WindowCenterCheck
+    GuiControl, Settings:%EnableState%, AltMoveCheck
+    GuiControl, Settings:%EnableState%, MinimizeWindowCheck
+    GuiControl, Settings:%EnableState%, BorderlessWindowCheck
+    GuiControl, Settings:%EnableState%, SwitchProgramWindowsCheck
+    GuiControl, Settings:%EnableState%, WindowSizeCheck
+    GuiControl, Settings:%EnableState%, PreventHibernationCheck
+}
+
+; ========================
+; 设置窗口事件处理
+; ========================
+MasterSwitchChange:
+    Gui, Settings:Submit, NoHide
+    MasterSwitch := MasterSwitchCheck
+    UpdateSettingsUI()
+    UpdateMenu()
+    SaveConfig()
+return
+
+PastePureTextChange:
+    Gui, Settings:Submit, NoHide
+    PastePureText := PastePureTextCheck
+    UpdateMenu()
+    SaveConfig()
+return
+
+WindowOnTopChange:
+    Gui, Settings:Submit, NoHide
+    WindowOnTop := WindowOnTopCheck
+    UpdateMenu()
+    SaveConfig()
+return
+
+WindowCenterChange:
+    Gui, Settings:Submit, NoHide
+    WindowCenter := WindowCenterCheck
+    UpdateMenu()
+    SaveConfig()
+return
+
+AltMoveChange:
+    Gui, Settings:Submit, NoHide
+    AltMove := AltMoveCheck
+    UpdateMenu()
+    SaveConfig()
+return
+
+MinimizeWindowChange:
+    Gui, Settings:Submit, NoHide
+    MinimizeWindow := MinimizeWindowCheck
+    UpdateMenu()
+    SaveConfig()
+return
+
+BorderlessWindowChange:
+    Gui, Settings:Submit, NoHide
+    BorderlessWindow := BorderlessWindowCheck
+    UpdateMenu()
+    SaveConfig()
+return
+
+SwitchProgramWindowsChange:
+    Gui, Settings:Submit, NoHide
+    SwitchProgramWindows := SwitchProgramWindowsCheck
+    UpdateMenu()
+    SaveConfig()
+return
+
+WindowSizeChange:
+    Gui, Settings:Submit, NoHide
+    WindowSize := WindowSizeCheck
+    UpdateMenu()
+    SaveConfig()
+return
+
+PreventHibernationChange:
+    Gui, Settings:Submit, NoHide
+    PreventHibernation := PreventHibernationCheck
+    UpdateMenu()
+    SetPreventHibernation(PreventHibernation)
+    SaveConfig()
+return
 
 ; ========================
 ; 引入功能模块
@@ -217,6 +429,10 @@ UpdateMenu() {
 
     SaveConfig()
 
+    ; 如果设置窗口打开，同步更新界面
+    if (SettingsGuiVisible) {
+        UpdateSettingsUI()
+    }
 }
 
 ; ========================
@@ -292,3 +508,4 @@ return
 
 ExitScript:
     ExitApp
+    
