@@ -17,3 +17,10 @@ if (!MinimizeWindow || !MasterSwitch)
     return
 WinMinimize, A
 return
+
+; Alt + 鼠标滚轮下 -> 最小化当前活动窗口
+!WheelDown::
+if (!MinimizeWindow || !MasterSwitch)
+    return
+WinMinimize, A
+return

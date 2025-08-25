@@ -184,7 +184,7 @@ ShowLauncher:
     GUI_LOCK := false
 return
 
-; 创建快捷方式函数
+; 创建快捷方式函数（修改支持文件夹）
 CreateShortcut(targetPath, shortcutPath) {
     try {
         shell := ComObjCreate("WScript.Shell")
@@ -192,9 +192,16 @@ CreateShortcut(targetPath, shortcutPath) {
         sc.TargetPath := targetPath
         
         ; 设置工作目录
-        SplitPath, targetPath, , workingDir
-        if FileExist(workingDir)
+        if (FileExist(targetPath "\.")) {
+            ; 如果是文件夹，设置父目录为工作目录
+            SplitPath, targetPath, , workingDir
             sc.WorkingDirectory := workingDir
+        } else {
+            ; 如果是文件，设置文件所在目录为工作目录
+            SplitPath, targetPath, , workingDir
+            if FileExist(workingDir)
+                sc.WorkingDirectory := workingDir
+        }
         
         ; 如果是可执行文件，尝试提取图标
         SplitPath, targetPath, , , ext
@@ -202,6 +209,20 @@ CreateShortcut(targetPath, shortcutPath) {
             sc.IconLocation := targetPath ",0"
         
         sc.Save()
+        return true
+    } catch e {
+        return false
+    }
+}
+
+; 创建网页快捷方式函数
+CreateWebShortcut(name, url, shortcutPath) {
+    try {
+        ; 创建网页快捷方式文件内容
+        content := "[InternetShortcut]`nURL=" . url . "`nIconFile=C:\Windows\System32\shell32.dll`nIconIndex=13"
+        
+        ; 写入文件
+        FileAppend, %content%, %shortcutPath%
         return true
     } catch e {
         return false
@@ -286,6 +307,15 @@ OpenFile:
         LV_GetText(name, Row, 1)
         LV_GetText(path, Row, 2)
 
+        ; 检查是否是网页快捷方式
+        SplitPath, path, , , ext
+        if (ext = "url") {
+            OpenWebShortcut(path)
+            if (!IsPinned)
+                Gui, Destroy
+            return
+        }
+
         if (path = "" || !FileExist(path)) {
             MsgBox, 48, 错误, 文件不存在或快捷方式无效：`n%name%
             return
@@ -302,6 +332,44 @@ OpenFile:
             Gui, Destroy
     }
 return
+
+; 打开网页快捷方式
+OpenWebShortcut(urlFilePath) {
+    IniRead, url, %urlFilePath%, InternetShortcut, URL
+    
+    ; 检查是否包含参数占位符
+    if InStr(url, "{query}") {
+        InputBox, query, 输入参数, 请输入搜索内容或参数:
+        if (ErrorLevel = 0 && query != "") {
+            ; 对查询内容进行URL编码
+            encodedQuery := UrlEncode(query)
+            url := StrReplace(url, "{query}", encodedQuery)
+        } else {
+            return
+        }
+    }
+    
+    Run, %url%
+}
+
+; URL编码函数
+UrlEncode(str) {
+    encodedStr := ""
+    Loop, Parse, str
+    {
+        char := A_LoopField
+        if RegExMatch(char, "[A-Za-z0-9\-_.~]")
+            encodedStr .= char
+        else {
+            ; 获取字符的UTF-8编码
+            VarSetCapacity(utf8, 4)
+            len := DllCall("WideCharToMultiByte", "UInt", 65001, "UInt", 0, "Str", char, "Int", 1, "Ptr", &utf8, "Int", 4, "Ptr", 0, "Ptr", 0)
+            Loop, %len%
+                encodedStr .= "%" . Format("{:02X}", NumGet(utf8, A_Index-1, "UChar"))
+        }
+    }
+    return encodedStr
+}
 
 ; ========================
 ; 固定窗口 📌
@@ -416,12 +484,17 @@ GetIconIndex(filePath) {
     global IL, IconCache
     
     targetPath := ""
-    if (SubStr(filePath, -3) = ".lnk") {
+    SplitPath, filePath, , , ext
+    
+    if (ext = "lnk") {
         target := GetShortcutTarget(filePath)
         if (FileExist(target))
             targetPath := target
         else
             targetPath := filePath
+    } else if (ext = "url") {
+        ; 网页快捷方式使用默认浏览器图标
+        targetPath := "C:\Windows\System32\shell32.dll"
     } else {
         targetPath := filePath
     }
@@ -429,7 +502,11 @@ GetIconIndex(filePath) {
     if IconCache.HasKey(targetPath) {
         return IconCache[targetPath]
     } else {
-        iconIndex := IL_Add(IL, targetPath, 0)
+        if (ext = "url") {
+            iconIndex := IL_Add(IL, targetPath, 13)  ; shell32.dll 中的浏览器图标
+        } else {
+            iconIndex := IL_Add(IL, targetPath, 0)
+        }
         IconCache[targetPath] := iconIndex
         return iconIndex
     }
@@ -443,13 +520,13 @@ GetShortcutTarget(path) {
 }
 
 ; ========================
-; 添加文件（快捷方式）
+; 添加文件（快捷方式）修改支持文件夹
 ; ========================
 MenuAddFiles:
     folder := BaseFolder "\" CurrentTabName
 
-    ; 弹出多文件选择对话框
-    FileSelectFile, files, M, , 选择文件, 所有文件 (*.*)
+    ; 弹出多文件选择对话框，支持文件夹
+    FileSelectFile, files, M, , 选择文件或文件夹, 所有文件 (*.*)
     if (ErrorLevel)
         return
 
@@ -495,6 +572,48 @@ MenuAddFiles:
 return
 
 ; ========================
+; 添加文件夹快捷方式
+; ========================
+MenuAddFolder:
+    folder := BaseFolder "\" CurrentTabName
+    
+    FileSelectFolder, selectedFolder, , 0, 选择文件夹
+    if (ErrorLevel)
+        return
+    
+    SplitPath, selectedFolder, name
+    lnkPath := folder "\" name ".lnk"
+    CreateShortcut(selectedFolder, lnkPath)
+    
+    ; 重新加载文件列表
+    LoadFiles(CurrentTabName)
+return
+
+; ========================
+; 添加网页快捷方式
+; ========================
+MenuAddWeb:
+    folder := BaseFolder "\" CurrentTabName
+    
+    ; 输入网页名称
+    InputBox, webName, 添加网页快捷方式, 请输入快捷方式名称:
+    if (ErrorLevel || webName = "")
+        return
+    
+    ; 输入网页地址
+    InputBox, webUrl, 添加网页快捷方式, 请输入网页地址:`n`n提示: 可以使用 {query} 作为参数占位符`n例如: https://www.google.com/search?q={query}, 网页地址
+    if (ErrorLevel || webUrl = "")
+        return
+    
+    ; 创建网页快捷方式
+    urlPath := folder "\" webName ".url"
+    CreateWebShortcut(webName, webUrl, urlPath)
+    
+    ; 重新加载文件列表
+    LoadFiles(CurrentTabName)
+return
+
+; ========================
 ; 右键菜单事件
 ; ========================
 GuiContextMenu:
@@ -515,6 +634,8 @@ GuiContextMenu:
         folder := BaseFolder "\" CurrentTabName
         Menu, BlankMenu, Add, 打开当前文件夹, MenuOpenCurrentFolder
         Menu, BlankMenu, Add, 添加文件（快捷方式）, MenuAddFiles
+        Menu, BlankMenu, Add, 添加文件夹（快捷方式）, MenuAddFolder
+        Menu, BlankMenu, Add, 添加网页快捷方式, MenuAddWeb
         Menu, BlankMenu, Show, %mx% %my%
     }
 return
