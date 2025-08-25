@@ -15,11 +15,9 @@ global ww := 0, wh := 0
 ; ------------------------
 ; Alt + 左键拖动窗口
 ; ------------------------
+#If AltMove
 !LButton::
 {
-    if (!AltMove || !MasterSwitch)
-        return
-
     if (dragging)  ; 已经在拖动中，不重复安装钩子
         return
 
@@ -46,6 +44,8 @@ return
     }
 }
 return
+
+#If  ; 结束 #If 块，使后面的热键不受影响
 
 ; ------------------------
 ; 钩子函数

@@ -20,6 +20,7 @@ global BorderlessWindow
 global SwitchProgramWindows
 global WindowSize
 global PreventHibernation
+global ReconstructionWindow
 global MasterSwitch  ; 总开关
 ;global QuickWorkbench   := true
 
@@ -38,7 +39,7 @@ InitConfig() {
     global ConfigFile
     global PastePureText, WindowOnTop, WindowCenter, AltMove
     global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
-    global PreventHibernation
+    global PreventHibernation, ReconstructionWindow
     global MasterSwitch
 
     ; 如果配置文件不存在，则生成默认配置
@@ -53,6 +54,7 @@ InitConfig() {
         IniWrite, 1, %ConfigFile%, Settings, SwitchProgramWindows
         IniWrite, 1, %ConfigFile%, Settings, WindowSize
         IniWrite, 0, %ConfigFile%, Settings, PreventHibernation
+        IniWrite, 1, %ConfigFile%, Settings, ReconstructionWindow
         IniWrite, 1, %ConfigFile%, Settings, MasterSwitch
     }
 
@@ -87,6 +89,9 @@ InitConfig() {
     ; 立即同步到PreventHibernation
     SetPreventHibernation(PreventHibernation)
 
+    IniRead, ReconstructionWindow, %ConfigFile%, Settings, ReconstructionWindow, 1
+    ReconstructionWindow := (ReconstructionWindow = 1)
+
     IniRead, MasterSwitch, %ConfigFile%, Settings, MasterSwitch, 1
     MasterSwitch := (MasterSwitch = 1)
 }
@@ -108,6 +113,7 @@ SaveConfig() {
     IniWrite, % SwitchProgramWindows ? 1 : 0, %ConfigFile%, Settings, SwitchProgramWindows
     IniWrite, % WindowSize ? 1 : 0, %ConfigFile%, Settings, WindowSize
     IniWrite, % PreventHibernation ? 1 : 0, %ConfigFile%, Settings, PreventHibernation
+    IniWrite, % ReconstructionWindow ? 1 : 0, %ConfigFile%, Settings, ReconstructionWindow
     IniWrite, % MasterSwitch ? 1 : 0, %ConfigFile%, Settings, MasterSwitch
 }
 
@@ -129,6 +135,7 @@ Menu, Tray, Add, 无边框化窗口 (Alt+B), Toggle_BorderlessWindow
 Menu, Tray, Add, 切换程序窗口 (Ctrl+Alt+鼠标滚轮), Toggle_SwitchProgramWindows
 Menu, Tray, Add, 修改窗口尺寸 (Alt+Z), Toggle_WindowSize
 Menu, Tray, Add, 防止休眠, Toggle_PreventHibernation
+Menu, Tray, Add, 重构窗口 (Alt+T), Toggle_ReconstructionWindow
 
 Menu, Tray, Add
 Menu, Tray, Add, 重启程序, RestartScript
@@ -191,7 +198,8 @@ ShowSettingsWindow() {
     Gui, Settings:Add, Checkbox, x270 y145 w200 h20 vSwitchProgramWindowsCheck gSwitchProgramWindowsChange, 切换程序窗口
     Gui, Settings:Add, Checkbox, x270 y170 w200 h20 vWindowSizeCheck gWindowSizeChange, 修改窗口尺寸 (Alt+Z)
     Gui, Settings:Add, Checkbox, x270 y195 w200 h20 vPreventHibernationCheck gPreventHibernationChange, 防止休眠
-    
+    Gui, Settings:Add, Checkbox, x270 y220 w200 h20 vReconstructionWindowCheck gReconstructionWindowChange, 重构窗口 (Alt+T)
+
     ; 功能说明
     Gui, Settings:Add, Text, x30 y250 w440 h80 +Wrap, 提示：`n• 总开关关闭时，所有功能将被禁用`n• 快捷键功能需要对应的功能模块启用才能生效`n• 防止休眠功能会阻止系统自动进入休眠状态`n• 双击托盘图标可快速打开此设置窗口
     
@@ -252,6 +260,7 @@ UpdateSettingsUI() {
     GuiControl, Settings:, SwitchProgramWindowsCheck, % (MasterSwitch && SwitchProgramWindows)
     GuiControl, Settings:, WindowSizeCheck, % (MasterSwitch && WindowSize)
     GuiControl, Settings:, PreventHibernationCheck, % (MasterSwitch && PreventHibernation)
+    GuiControl, Settings:, ReconstructionWindowCheck, % (MasterSwitch && ReconstructionWindow)
     
     ; 根据总开关状态启用/禁用子功能控件
     EnableState := MasterSwitch ? "Enable" : "Disable"
@@ -264,6 +273,7 @@ UpdateSettingsUI() {
     GuiControl, Settings:%EnableState%, SwitchProgramWindowsCheck
     GuiControl, Settings:%EnableState%, WindowSizeCheck
     GuiControl, Settings:%EnableState%, PreventHibernationCheck
+    GuiControl, Settings:%EnableState%, ReconstructionWindowCheck
 }
 
 ; ========================
@@ -341,6 +351,13 @@ PreventHibernationChange:
     SaveConfig()
 return
 
+ReconstructionWindowChange:
+    Gui, Settings:Submit, NoHide
+    ReconstructionWindow := ReconstructionWindowCheck
+    UpdateMenu()
+    SaveConfig()
+return
+
 ; ========================
 ; 引入功能模块
 ; ========================
@@ -354,6 +371,7 @@ return
 #Include %A_ScriptDir%\SwitchProgramWindows.ahk
 #Include %A_ScriptDir%\WindowSize.ahk
 #Include %A_ScriptDir%\PreventHibernation.ahk
+#Include %A_ScriptDir%\ReconstructionWindow.ahk
 
 return  ; 主线程到此结束，等待事件
 
@@ -427,6 +445,11 @@ UpdateMenu() {
         SetPreventHibernation(false)
     }
 
+    if (MasterSwitch && ReconstructionWindow)
+        Menu, Tray, Check, 重构窗口 (Alt+T)
+    else
+        Menu, Tray, UnCheck, 重构窗口 (Alt+T)
+
     SaveConfig()
 
     ; 如果设置窗口打开，同步更新界面
@@ -497,6 +520,11 @@ Toggle_PreventHibernation:
     
     ; 调用子脚本接口，让防休眠立即生效
     SetPreventHibernation(PreventHibernation)
+return
+
+Toggle_ReconstructionWindow:
+    ReconstructionWindow := !ReconstructionWindow
+    UpdateMenu()
 return
 
 ; ========================
