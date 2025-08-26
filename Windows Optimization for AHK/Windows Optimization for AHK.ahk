@@ -21,6 +21,7 @@ global SwitchProgramWindows
 global WindowSize
 global PreventHibernation
 global ReconstructionWindow
+global EnsureNumLock
 global MasterSwitch  ; 总开关
 ;global QuickWorkbench   := true
 
@@ -34,12 +35,13 @@ global CurrentTab := 1
 ; 初始化
 ; ========================
 InitConfig()
+EnsureNumLock_Init()
 
 InitConfig() {
     global ConfigFile
     global PastePureText, WindowOnTop, WindowCenter, AltMove
     global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
-    global PreventHibernation, ReconstructionWindow
+    global PreventHibernation, ReconstructionWindow, EnsureNumLock
     global MasterSwitch
 
     ; 如果配置文件不存在，则生成默认配置
@@ -55,6 +57,7 @@ InitConfig() {
         IniWrite, 1, %ConfigFile%, Settings, WindowSize
         IniWrite, 0, %ConfigFile%, Settings, PreventHibernation
         IniWrite, 1, %ConfigFile%, Settings, ReconstructionWindow
+        IniWrite, 1, %ConfigFile%, Settings, EnsureNumLock
         IniWrite, 1, %ConfigFile%, Settings, MasterSwitch
     }
 
@@ -92,6 +95,9 @@ InitConfig() {
     IniRead, ReconstructionWindow, %ConfigFile%, Settings, ReconstructionWindow, 1
     ReconstructionWindow := (ReconstructionWindow = 1)
 
+    IniRead, EnsureNumLock, %ConfigFile%, Settings, EnsureNumLock, 1
+    EnsureNumLock := (EnsureNumLock = 1)
+
     IniRead, MasterSwitch, %ConfigFile%, Settings, MasterSwitch, 1
     MasterSwitch := (MasterSwitch = 1)
 }
@@ -102,7 +108,9 @@ InitConfig() {
 SaveConfig() {
     global ConfigFile
     global PastePureText, WindowOnTop, WindowCenter, AltMove
-    global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, MasterSwitch
+    global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
+    global PreventHibernation, ReconstructionWindow, EnsureNumLock
+    global MasterSwitch
 
     IniWrite, % PastePureText ? 1 : 0, %ConfigFile%, Settings, PastePureText
     IniWrite, % WindowOnTop ? 1 : 0, %ConfigFile%, Settings, WindowOnTop
@@ -114,6 +122,7 @@ SaveConfig() {
     IniWrite, % WindowSize ? 1 : 0, %ConfigFile%, Settings, WindowSize
     IniWrite, % PreventHibernation ? 1 : 0, %ConfigFile%, Settings, PreventHibernation
     IniWrite, % ReconstructionWindow ? 1 : 0, %ConfigFile%, Settings, ReconstructionWindow
+    IniWrite, % EnsureNumLock ? 1 : 0, %ConfigFile%, Settings, EnsureNumLock
     IniWrite, % MasterSwitch ? 1 : 0, %ConfigFile%, Settings, MasterSwitch
 }
 
@@ -134,8 +143,9 @@ Menu, Tray, Add, 最小化窗口 (Alt+A / Alt+M), Toggle_MinimizeWindow
 Menu, Tray, Add, 无边框化窗口 (Alt+B), Toggle_BorderlessWindow
 Menu, Tray, Add, 切换程序窗口 (Ctrl+Alt+鼠标滚轮), Toggle_SwitchProgramWindows
 Menu, Tray, Add, 修改窗口尺寸 (Alt+Z), Toggle_WindowSize
-Menu, Tray, Add, 防止休眠, Toggle_PreventHibernation
 Menu, Tray, Add, 重构窗口 (Alt+T), Toggle_ReconstructionWindow
+Menu, Tray, Add, 防止休眠, Toggle_PreventHibernation
+Menu, Tray, Add, 确保启用Num Lock, Toggle_EnsureNumLock
 
 Menu, Tray, Add
 Menu, Tray, Add, 重启程序, RestartScript
@@ -199,6 +209,7 @@ ShowSettingsWindow() {
     Gui, Settings:Add, Checkbox, x270 y170 w200 h20 vWindowSizeCheck gWindowSizeChange, 修改窗口尺寸 (Alt+Z)
     Gui, Settings:Add, Checkbox, x270 y195 w200 h20 vPreventHibernationCheck gPreventHibernationChange, 防止休眠
     Gui, Settings:Add, Checkbox, x270 y220 w200 h20 vReconstructionWindowCheck gReconstructionWindowChange, 重构窗口 (Alt+T)
+    Gui, Settings:Add, Checkbox, x30 y250 w200 h20 vEnsureNumLockCheck gEnsureNumLockChange, 确保启用Num Lock
 
     ; 功能说明
     Gui, Settings:Add, Text, x30 y250 w440 h80 +Wrap, 提示：`n• 总开关关闭时，所有功能将被禁用`n• 快捷键功能需要对应的功能模块启用才能生效`n• 防止休眠功能会阻止系统自动进入休眠状态`n• 双击托盘图标可快速打开此设置窗口
@@ -261,6 +272,7 @@ UpdateSettingsUI() {
     GuiControl, Settings:, WindowSizeCheck, % (MasterSwitch && WindowSize)
     GuiControl, Settings:, PreventHibernationCheck, % (MasterSwitch && PreventHibernation)
     GuiControl, Settings:, ReconstructionWindowCheck, % (MasterSwitch && ReconstructionWindow)
+    GuiControl, Settings:, EnsureNumLockCheck, % (MasterSwitch && EnsureNumLock)
     
     ; 根据总开关状态启用/禁用子功能控件
     EnableState := MasterSwitch ? "Enable" : "Disable"
@@ -274,6 +286,7 @@ UpdateSettingsUI() {
     GuiControl, Settings:%EnableState%, WindowSizeCheck
     GuiControl, Settings:%EnableState%, PreventHibernationCheck
     GuiControl, Settings:%EnableState%, ReconstructionWindowCheck
+    GuiControl, Settings:%EnableState%, EnsureNumLockCheck
 }
 
 ; ========================
@@ -358,6 +371,13 @@ ReconstructionWindowChange:
     SaveConfig()
 return
 
+EnsureNumLockChange:
+    Gui, Settings:Submit, NoHide
+    EnsureNumLock := EnsureNumLockCheck
+    UpdateMenu()
+    SaveConfig()
+return
+
 ; ========================
 ; 引入功能模块
 ; ========================
@@ -432,6 +452,11 @@ UpdateMenu() {
     else
         Menu, Tray, UnCheck, 修改窗口尺寸 (Alt+Z)
 
+    if (MasterSwitch && ReconstructionWindow)
+        Menu, Tray, Check, 重构窗口 (Alt+T)
+    else
+        Menu, Tray, UnCheck, 重构窗口 (Alt+T)
+
     ; 防止休眠菜单复选状态
     if (MasterSwitch && PreventHibernation)
         Menu, Tray, Check, 防止休眠
@@ -445,11 +470,11 @@ UpdateMenu() {
         SetPreventHibernation(false)
     }
 
-    if (MasterSwitch && ReconstructionWindow)
-        Menu, Tray, Check, 重构窗口 (Alt+T)
+    if (MasterSwitch && EnsureNumLock)
+        Menu, Tray, Check, 确保启用Num Lock
     else
-        Menu, Tray, UnCheck, 重构窗口 (Alt+T)
-
+        Menu, Tray, UnCheck, 确保启用Num Lock
+        
     SaveConfig()
 
     ; 如果设置窗口打开，同步更新界面
@@ -514,6 +539,11 @@ Toggle_WindowSize:
     UpdateMenu()
 return
 
+Toggle_ReconstructionWindow:
+    ReconstructionWindow := !ReconstructionWindow
+    UpdateMenu()
+return
+
 Toggle_PreventHibernation:
     PreventHibernation := !PreventHibernation
     UpdateMenu()
@@ -522,10 +552,29 @@ Toggle_PreventHibernation:
     SetPreventHibernation(PreventHibernation)
 return
 
-Toggle_ReconstructionWindow:
-    ReconstructionWindow := !ReconstructionWindow
+Toggle_EnsureNumLock:
+    EnsureNumLock := !EnsureNumLock
     UpdateMenu()
 return
+
+; ========================
+; 小功能
+; ========================
+; 确保启用 NumLock
+EnsureNumLock_Init() {
+    ; 启动时立即检查一次
+    EnsureNumLock_Check()
+    ; 每 10 分钟检查一次
+    SetTimer, EnsureNumLock_Check, 600000
+}
+
+EnsureNumLock_Check() {
+    global EnsureNumLock, MasterSwitch
+    if (MasterSwitch && EnsureNumLock) {
+        if !GetKeyState("NumLock", "T")
+            SetNumLockState, On
+    }
+}
 
 ; ========================
 ; 程序控制
