@@ -18,6 +18,7 @@ DefaultFontSize := 11                    ; 字号
 DefaultFontWeight := "Bold"              ; 字体加粗
 DefaultBgColorMode := "深色预设"         ; 背景色模式：浅色预设、深色预设、自定义
 DefaultBgColor := "0x0B1113"            ; GUI 背景颜色（自定义时使用）
+DefaultBgTransparency := 255             ; 背景透明度 (0-255，255为不透明)
 DefaultNumRightMargin := 6               ; 数字右侧空白
 DefaultArrowWidth := 24                  ; 箭头宽度
 DefaultPositionCorner := "右下角"         ; 位置角落：右下角、右上角、左下角、左上角
@@ -33,6 +34,7 @@ DefaultColorHigh := "F2C08C"             ; 橙色
 DefaultEnableSmoothing := true           ; 是否启用平滑处理
 DefaultEMAFactor := 0.35                 ; EMA 指数平滑因子，用于平滑网速显示
 DefaultConfirmNeeded := 2                 ; 防抖确认次数：同一颜色连续出现多少次才真正更新
+DefaultAutoRestart := false              ; 保存后自动重启不二次确认
 
 ; ---------- 读取配置文件 ----------  
 LoadConfig()
@@ -91,6 +93,7 @@ LoadConfig()
     
     ; 读取配置值并清理格式
     IniRead, Interval, %ConfigFile%, General, Interval, %DefaultInterval%
+    IniRead, AutoRestart, %ConfigFile%, General, AutoRestart, %DefaultAutoRestart%
     IniRead, GuiWidth, %ConfigFile%, GUI, Width, %DefaultGuiWidth%
     IniRead, GuiHeight, %ConfigFile%, GUI, Height, %DefaultGuiHeight%
     IniRead, FontName, %ConfigFile%, GUI, FontName, %DefaultFontName%
@@ -98,6 +101,7 @@ LoadConfig()
     IniRead, FontWeight, %ConfigFile%, GUI, FontWeight, %DefaultFontWeight%
     IniRead, BgColorMode, %ConfigFile%, GUI, BgColorMode, %DefaultBgColorMode%
     IniRead, BgColor, %ConfigFile%, GUI, BgColor, %DefaultBgColor%
+    IniRead, BgTransparency, %ConfigFile%, GUI, BgTransparency, %DefaultBgTransparency%
     IniRead, NumRightMargin, %ConfigFile%, GUI, NumRightMargin, %DefaultNumRightMargin%
     IniRead, ArrowWidth, %ConfigFile%, GUI, ArrowWidth, %DefaultArrowWidth%
     IniRead, PositionCorner, %ConfigFile%, Position, Corner, %DefaultPositionCorner%
@@ -122,6 +126,7 @@ LoadConfig()
     GuiWidth := RegExReplace(GuiWidth, "[,\s]", "")
     GuiHeight := RegExReplace(GuiHeight, "[,\s]", "")
     FontSize := RegExReplace(FontSize, "[,\s]", "")
+    BgTransparency := RegExReplace(BgTransparency, "[,\s]", "")
     NumRightMargin := RegExReplace(NumRightMargin, "[,\s]", "")
     ArrowWidth := RegExReplace(ArrowWidth, "[,\s]", "")
     OffsetX := RegExReplace(OffsetX, "[,\s]", "")
@@ -140,6 +145,8 @@ LoadConfig()
         GuiHeight := DefaultGuiHeight
     if (FontSize < 8 || FontSize > 24)
         FontSize := DefaultFontSize
+    if (BgTransparency < 0 || BgTransparency > 255)
+        BgTransparency := DefaultBgTransparency
     
     ; 处理背景色预设
     if (BgColorMode = "浅色预设")
@@ -160,6 +167,7 @@ CreateDefaultConfig()
     
     ; 写入默认配置
     IniWrite, %DefaultInterval%, %ConfigFile%, General, Interval
+    IniWrite, %DefaultAutoRestart%, %ConfigFile%, General, AutoRestart
     IniWrite, %DefaultGuiWidth%, %ConfigFile%, GUI, Width
     IniWrite, %DefaultGuiHeight%, %ConfigFile%, GUI, Height
     IniWrite, %DefaultFontName%, %ConfigFile%, GUI, FontName
@@ -167,6 +175,7 @@ CreateDefaultConfig()
     IniWrite, %DefaultFontWeight%, %ConfigFile%, GUI, FontWeight
     IniWrite, %DefaultBgColorMode%, %ConfigFile%, GUI, BgColorMode
     IniWrite, %DefaultBgColor%, %ConfigFile%, GUI, BgColor
+    IniWrite, %DefaultBgTransparency%, %ConfigFile%, GUI, BgTransparency
     IniWrite, %DefaultNumRightMargin%, %ConfigFile%, GUI, NumRightMargin
     IniWrite, %DefaultArrowWidth%, %ConfigFile%, GUI, ArrowWidth
     IniWrite, %DefaultPositionCorner%, %ConfigFile%, Position, Corner
@@ -201,6 +210,9 @@ ShowSettings:
     Gui, Settings: Add, Edit, x140 y36 w80 vInterval, %Interval%
     Gui, Settings: Add, UpDown, vIntervalUD Range100-5000, %Interval%
     
+    Gui, Settings: Add, Checkbox, x20 y70 vAutoRestart, 保存后重启不二次确认
+    GuiControl, Settings:, AutoRestart, %AutoRestart%
+    
     ; 界面选项卡
     Gui, Settings: Tab, 界面
     Gui, Settings: Add, Text, x20 y40, 窗口宽度:
@@ -227,6 +239,11 @@ ShowSettings:
     Gui, Settings: Add, Text, x220 y130, 自定义背景色:
     Gui, Settings: Add, Edit, x320 y126 w80 vBgColor, %BgColor%
     
+    Gui, Settings: Add, Text, x20 y160, 背景透明度 (0-255):
+    Gui, Settings: Add, Edit, x150 y156 w50 vBgTransparency, %BgTransparency%
+    Gui, Settings: Add, UpDown, vBgTransparencyUD Range0-255, %BgTransparency%
+    Gui, Settings: Add, Text, x210 y160, (0=完全透明，254=不透明，255=只显示文字)
+    
     ; 根据当前模式启用/禁用自定义背景色输入框
     if (BgColorMode != "自定义")
         GuiControl, Settings: Disable, BgColor
@@ -240,10 +257,12 @@ ShowSettings:
     Gui, Settings: Add, Text, x20 y70, 横向偏移:
     Gui, Settings: Add, Edit, x150 y66 w50 vOffsetX, %OffsetX%
     Gui, Settings: Add, UpDown, vOffsetXUD Range-200-200, %OffsetX%
+    Gui, Settings: Add, Text, x210 y70, (正数向右，负数向左)
     
     Gui, Settings: Add, Text, x20 y100, 纵向偏移:
     Gui, Settings: Add, Edit, x150 y96 w50 vOffsetY, %OffsetY%
     Gui, Settings: Add, UpDown, vOffsetYUD Range-200-200, %OffsetY%
+    Gui, Settings: Add, Text, x210 y100, (正数向上，负数向下)
     
     ; 网速阈值选项卡
     Gui, Settings: Tab, 网速阈值
@@ -313,6 +332,7 @@ SaveSettings:
     GuiWidth := RegExReplace(GuiWidth, "[,\s]", "")
     GuiHeight := RegExReplace(GuiHeight, "[,\s]", "")
     FontSize := RegExReplace(FontSize, "[,\s]", "")
+    BgTransparency := RegExReplace(BgTransparency, "[,\s]", "")
     OffsetX := RegExReplace(OffsetX, "[,\s]", "")
     OffsetY := RegExReplace(OffsetY, "[,\s]", "")
     Thresh1KB := RegExReplace(Thresh1KB, "[,\s]", "")
@@ -329,6 +349,8 @@ SaveSettings:
         GuiHeight := 44
     if (FontSize < 8 || FontSize > 24)
         FontSize := 11
+    if (BgTransparency < 0 || BgTransparency > 255)
+        BgTransparency := 255
     if (Thresh1KB < 1 || Thresh1KB > 1000)
         Thresh1KB := 50
     if (Thresh2KB < 1 || Thresh2KB > 5000)
@@ -340,6 +362,7 @@ SaveSettings:
     
     ; 保存到配置文件
     IniWrite, %Interval%, %ConfigFile%, General, Interval
+    IniWrite, %AutoRestart%, %ConfigFile%, General, AutoRestart
     IniWrite, %GuiWidth%, %ConfigFile%, GUI, Width
     IniWrite, %GuiHeight%, %ConfigFile%, GUI, Height
     IniWrite, %FontName%, %ConfigFile%, GUI, FontName
@@ -347,6 +370,7 @@ SaveSettings:
     IniWrite, %FontWeight%, %ConfigFile%, GUI, FontWeight
     IniWrite, %BgColorMode%, %ConfigFile%, GUI, BgColorMode
     IniWrite, %BgColor%, %ConfigFile%, GUI, BgColor
+    IniWrite, %BgTransparency%, %ConfigFile%, GUI, BgTransparency
     IniWrite, %PositionCorner%, %ConfigFile%, Position, Corner
     IniWrite, %OffsetX%, %ConfigFile%, Position, OffsetX
     IniWrite, %OffsetY%, %ConfigFile%, Position, OffsetY
@@ -365,11 +389,18 @@ SaveSettings:
     IniWrite, %EMAFactor%, %ConfigFile%, Advanced, EMAFactor
     IniWrite, %ConfirmNeeded%, %ConfigFile%, Advanced, ConfirmNeeded
     
-    ; 提示并重启程序
-    MsgBox, 4, 设置已保存, 设置已保存！需要重启程序以应用新设置。是否现在重启？
-    IfMsgBox Yes
+    ; 根据AutoRestart设置决定是否确认重启
+    if (AutoRestart)
     {
         Reload
+    }
+    else
+    {
+        MsgBox, 4, 设置已保存, 设置已保存！需要重启程序以应用新设置。是否现在重启？
+        IfMsgBox Yes
+        {
+            Reload
+        }
     }
 Return
 
@@ -515,28 +546,43 @@ GetColorBySpeed(val)
 CreateGuiAndShow(hexColor)
 {
     global GuiWidth, GuiHeight, FontName, FontSize, FontWeight
-    global NumWidth, ArrowWidth, UpY, DownY, ArrowX, BgColor
+    global NumWidth, ArrowWidth, UpY, DownY, ArrowX, BgColor, BgTransparency
     global UpNum, UpArrow, DownNum, DownArrow
+    global hGui  ; 新增：保存当前 GUI 句柄
 
-    ; 创建 GUI：置顶、无标题、工具窗口、最后创建窗口句柄
-    Gui, +AlwaysOnTop -Caption +ToolWindow +LastFound
+    ; 获取句柄（替代 +LastFound）
+    Gui, +AlwaysOnTop -Caption +ToolWindow +HwndhGui
     Gui, Margin, 0,0
     Gui, Font, s%FontSize% %FontWeight%, %FontName%
 
-    ; 添加控件：上行数字、上行箭头、下行数字、下行箭头
-    Gui, Add, Text, x0 y%UpY% w%NumWidth% vUpNum Right c%hexColor%, 初始化...
-    Gui, Add, Text, x%ArrowX% y%UpY% w%ArrowWidth% vUpArrow Center c%hexColor%, ↑
-    Gui, Add, Text, x0 y%DownY% w%NumWidth% vDownNum Right c%hexColor%, 初始化...
-    Gui, Add, Text, x%ArrowX% y%DownY% w%ArrowWidth% vDownArrow Center c%hexColor%, ↓
+    ; 控件建议加 BackgroundTrans，避免控件自身涂底色
+    Gui, Add, Text, x0 y%UpY% w%NumWidth% vUpNum   Right  c%hexColor% BackgroundTrans, 初始化...
+    Gui, Add, Text, x%ArrowX% y%UpY% w%ArrowWidth% vUpArrow  Center c%hexColor% BackgroundTrans, ↑
+    Gui, Add, Text, x0 y%DownY% w%NumWidth% vDownNum Right  c%hexColor% BackgroundTrans, 初始化...
+    Gui, Add, Text, x%ArrowX% y%DownY% w%ArrowWidth% vDownArrow Center c%hexColor% BackgroundTrans, ↓
 
-    ; 设置背景颜色
     Gui, Color, %BgColor%
 
-    ; 根据配置定位GUI
+    ; 显示并定位（你已有）
     PositionGui()
 
-    ; 设置透明背景色
-    WinSet, TransColor, %BgColor%, A
+    ; 应用背景透明策略（见下一个函数）
+    ApplyGuiTransparency()
+}
+
+ApplyGuiTransparency()
+{
+    global hGui, BgColor, BgTransparency
+
+    if (BgTransparency = 255) {
+        ; 方案A：挖空背景，只显示文字（推荐用于“纯透明背景”）
+        WinSet, Transparent, Off,            ahk_id %hGui%
+        WinSet, TransColor, %BgColor% 255,   ahk_id %hGui%
+    } else {
+        ; 方案B：整窗半透明（含文字），用于做“半透明卡片”效果
+        WinSet, TransColor, Off,             ahk_id %hGui%
+        WinSet, Transparent, %BgTransparency%, ahk_id %hGui%
+    }
 }
 
 ; ---------- 根据配置定位GUI ----------
@@ -548,34 +594,34 @@ PositionGui()
     SysGet, screenW, 78
     SysGet, screenH, 79
     
-    ; 根据角落位置计算基础坐标
+    ; 根据角落位置计算基础坐标 - 修正偏移逻辑
     if (PositionCorner = "右下角")
     {
         baseX := screenW - GuiWidth
         baseY := screenH - GuiHeight
-        x := baseX - OffsetX
-        y := baseY + OffsetY
+        x := baseX - OffsetX  ; 横向：正数向右偏移变为负数向左偏移
+        y := baseY - OffsetY  ; 纵向：正数向上偏移变为负数向下偏移
     }
     else if (PositionCorner = "右上角")
     {
         baseX := screenW - GuiWidth
         baseY := 0
-        x := baseX - OffsetX
-        y := baseY - OffsetY
+        x := baseX - OffsetX  ; 横向：正数向右偏移变为负数向左偏移
+        y := baseY + OffsetY  ; 纵向：正数向上偏移
     }
     else if (PositionCorner = "左下角")
     {
         baseX := 0
         baseY := screenH - GuiHeight
-        x := baseX + OffsetX
-        y := baseY + OffsetY
+        x := baseX + OffsetX  ; 横向：正数向右偏移
+        y := baseY - OffsetY  ; 纵向：正数向上偏移变为负数向下偏移
     }
     else ; 左上角
     {
         baseX := 0
         baseY := 0
-        x := baseX + OffsetX
-        y := baseY - OffsetY
+        x := baseX + OffsetX  ; 横向：正数向右偏移
+        y := baseY + OffsetY  ; 纵向：正数向上偏移
     }
     
     ; 显示GUI
