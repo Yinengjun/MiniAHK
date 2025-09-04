@@ -139,7 +139,7 @@ Menu, Tray, Add, 窗口置顶 (Ctrl+Shift+E), Toggle_WindowOnTop
 Menu, Tray, Add, 窗口居中 (Alt+C), Toggle_WindowCenter
 Menu, Tray, Add, 移动窗口 (Alt+左键), Toggle_AltMove
 ;Menu, Tray, Add, QuickWorkbench (Alt+Q), Toggle_QuickWorkbench
-Menu, Tray, Add, 最小化窗口 (Alt+A / Alt+M), Toggle_MinimizeWindow
+Menu, Tray, Add, 最小化窗口 (Alt+A or Alt+M/滚轮下), Toggle_MinimizeWindow
 Menu, Tray, Add, 无边框化窗口 (Alt+B), Toggle_BorderlessWindow
 Menu, Tray, Add, 切换程序窗口 (Ctrl+Alt+鼠标滚轮), Toggle_SwitchProgramWindows
 Menu, Tray, Add, 修改窗口尺寸 (Alt+Z), Toggle_WindowSize
@@ -433,9 +433,9 @@ UpdateMenu() {
 ;        Menu, Tray, UnCheck, QuickWorkbench (Alt+Q)
 
     if (MasterSwitch && MinimizeWindow)
-        Menu, Tray, Check, 最小化窗口 (Alt+A / Alt+M)
+        Menu, Tray, Check, 最小化窗口 (Alt+A or Alt+M/滚轮下)
     else
-        Menu, Tray, UnCheck, 最小化窗口 (Alt+A / Alt+M)
+        Menu, Tray, UnCheck, 最小化窗口 (Alt+A or Alt+M/滚轮下)
 
     if (MasterSwitch && BorderlessWindow)
         Menu, Tray, Check, 无边框化窗口 (Alt+B)
