@@ -18,7 +18,7 @@ DefaultFontSize := 11                    ; 字号
 DefaultFontWeight := "Bold"              ; 字体加粗
 DefaultBgColorMode := "深色预设"         ; 背景色模式：浅色预设、深色预设、自定义
 DefaultBgColor := "0x0B1113"            ; GUI 背景颜色（自定义时使用）
-DefaultBgTransparency := 255             ; 背景透明度 (0-255，255为不透明)
+DefaultBgTransparency := 254             ; 背景透明度 (0-254，255为只显示文字)
 DefaultNumRightMargin := 6               ; 数字右侧空白
 DefaultArrowWidth := 24                  ; 箭头宽度
 DefaultPositionCorner := "右下角"         ; 位置角落：右下角、右上角、左下角、左上角
@@ -33,8 +33,9 @@ DefaultColorMed := "7FD3D6"              ; 青色
 DefaultColorHigh := "F2C08C"             ; 橙色
 DefaultEnableSmoothing := true           ; 是否启用平滑处理
 DefaultEMAFactor := 0.35                 ; EMA 指数平滑因子，用于平滑网速显示
-DefaultConfirmNeeded := 2                 ; 防抖确认次数：同一颜色连续出现多少次才真正更新
+DefaultConfirmNeeded := 2                ; 防抖确认次数：同一颜色连续出现多少次才真正更新
 DefaultAutoRestart := false              ; 保存后自动重启不二次确认
+DefaultMouseThrough := true              ; 鼠标穿透
 
 ; ---------- 读取配置文件 ----------  
 LoadConfig()
@@ -94,6 +95,7 @@ LoadConfig()
     ; 读取配置值并清理格式
     IniRead, Interval, %ConfigFile%, General, Interval, %DefaultInterval%
     IniRead, AutoRestart, %ConfigFile%, General, AutoRestart, %DefaultAutoRestart%
+    IniRead, MouseThrough, %configFile%, Settings, MouseThrough, %DefaultMouseThrough%
     IniRead, GuiWidth, %ConfigFile%, GUI, Width, %DefaultGuiWidth%
     IniRead, GuiHeight, %ConfigFile%, GUI, Height, %DefaultGuiHeight%
     IniRead, FontName, %ConfigFile%, GUI, FontName, %DefaultFontName%
@@ -168,6 +170,7 @@ CreateDefaultConfig()
     ; 写入默认配置
     IniWrite, %DefaultInterval%, %ConfigFile%, General, Interval
     IniWrite, %DefaultAutoRestart%, %ConfigFile%, General, AutoRestart
+    IniWrite, %DefaultMouseThrough%, %configFile%, Settings, MouseThrough
     IniWrite, %DefaultGuiWidth%, %ConfigFile%, GUI, Width
     IniWrite, %DefaultGuiHeight%, %ConfigFile%, GUI, Height
     IniWrite, %DefaultFontName%, %ConfigFile%, GUI, FontName
@@ -212,6 +215,9 @@ ShowSettings:
     
     Gui, Settings: Add, Checkbox, x20 y70 vAutoRestart, 保存后重启不二次确认
     GuiControl, Settings:, AutoRestart, %AutoRestart%
+
+    Gui, Settings: Add, Checkbox, x20 y100 vMouseThrough Checked%MouseThrough%, 鼠标穿透
+    GuiControl, Settings:, MouseThrough, %MouseThrough%
     
     ; 界面选项卡
     Gui, Settings: Tab, 界面
@@ -363,6 +369,7 @@ SaveSettings:
     ; 保存到配置文件
     IniWrite, %Interval%, %ConfigFile%, General, Interval
     IniWrite, %AutoRestart%, %ConfigFile%, General, AutoRestart
+    IniWrite, %MouseThrough%, %configFile%, Settings, MouseThrough
     IniWrite, %GuiWidth%, %ConfigFile%, GUI, Width
     IniWrite, %GuiHeight%, %ConfigFile%, GUI, Height
     IniWrite, %FontName%, %ConfigFile%, GUI, FontName
@@ -548,14 +555,15 @@ CreateGuiAndShow(hexColor)
     global GuiWidth, GuiHeight, FontName, FontSize, FontWeight
     global NumWidth, ArrowWidth, UpY, DownY, ArrowX, BgColor, BgTransparency
     global UpNum, UpArrow, DownNum, DownArrow
-    global hGui  ; 新增：保存当前 GUI 句柄
+    global hGui  ; 保存当前 GUI 句柄
+    global MouseThrough  ; 鼠标穿透设置
 
     ; 获取句柄（替代 +LastFound）
     Gui, +AlwaysOnTop -Caption +ToolWindow +HwndhGui
     Gui, Margin, 0,0
     Gui, Font, s%FontSize% %FontWeight%, %FontName%
 
-    ; 控件建议加 BackgroundTrans，避免控件自身涂底色
+    ; 添加控件（文字透明）
     Gui, Add, Text, x0 y%UpY% w%NumWidth% vUpNum   Right  c%hexColor% BackgroundTrans, 初始化...
     Gui, Add, Text, x%ArrowX% y%UpY% w%ArrowWidth% vUpArrow  Center c%hexColor% BackgroundTrans, ↑
     Gui, Add, Text, x0 y%DownY% w%NumWidth% vDownNum Right  c%hexColor% BackgroundTrans, 初始化...
@@ -563,11 +571,17 @@ CreateGuiAndShow(hexColor)
 
     Gui, Color, %BgColor%
 
-    ; 显示并定位（你已有）
+    ; 显示并定位
     PositionGui()
 
-    ; 应用背景透明策略（见下一个函数）
+    ; 应用背景透明策略
     ApplyGuiTransparency()
+
+    ; 应用鼠标穿透
+    if (MouseThrough)
+        WinSet, ExStyle, +0x20, ahk_id %hGui%
+    else
+        WinSet, ExStyle, -0x20, ahk_id %hGui%
 }
 
 ApplyGuiTransparency()
