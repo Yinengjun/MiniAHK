@@ -464,19 +464,24 @@ LoadFiles(subdir) {
 LoadIcons:
     global BaseFolder, IL, IconCache, filesToLoadIcons, currentIconIndex
     
-    if (currentIconIndex > filesToLoadIcons.MaxIndex()) {
-        SetTimer, LoadIcons, Off
-        return
-    }
+    ; 每次加载 10 个，提高速度
+    batchSize := 10
+    
+    Loop, %batchSize% {
+        if (currentIconIndex > filesToLoadIcons.MaxIndex()) {
+            SetTimer, LoadIcons, Off
+            return
+        }
 
-    filePath := filesToLoadIcons[currentIconIndex]
-    
-    iconIndex := GetIconIndex(filePath)
-    
-    ; 更新 ListView
-    LV_Modify(currentIconIndex, "Icon" iconIndex)
-    
-    currentIconIndex++
+        filePath := filesToLoadIcons[currentIconIndex]
+
+        iconIndex := GetIconIndex(filePath)
+
+        ; 更新 ListView
+        LV_Modify(currentIconIndex, "Icon" iconIndex)
+
+        currentIconIndex++
+    }
 return
 
 ; 新增辅助函数：获取图标索引（处理快捷方式和缓存）

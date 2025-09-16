@@ -3,8 +3,11 @@
 SetBatchLines, -1               ; 让脚本尽可能快地执行，不做自动延迟
 DetectHiddenWindows, On         ; 允许操作隐藏窗口
 Menu, Tray, NoStandard           ; 禁用默认托盘菜单
-Menu, Tray, Add, Settings, ShowSettings   ; 添加托盘菜单项：设置
-Menu, Tray, Add, Exit, ExitApp   ; 添加托盘菜单项：退出脚本
+
+; 添加右键菜单项
+Menu, Tray, Add, 设置, ShowSettings   ; 设置
+Menu, Tray, Add, 重启程序, RestartApp   ; 重启程序
+Menu, Tray, Add, 退出程序, ExitApp   ; 退出程序
 
 ; ---------- 配置文件路径 ----------  
 ConfigFile := A_ScriptDir . "\config.ini"
@@ -652,6 +655,11 @@ FormatSpeed(val)
     else
         return Round(val, 0) . " B/s"
 }
+
+; ---------- 重启脚本函数 ----------
+RestartApp:
+    Reload  ; 重启当前脚本
+Return
 
 ; ---------- 退出脚本 ----------
 ExitApp:
