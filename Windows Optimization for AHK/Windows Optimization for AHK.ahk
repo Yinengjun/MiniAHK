@@ -7,6 +7,7 @@ SetWorkingDir %A_ScriptDir%  ; 设置工作目录为脚本所在目录
 ConfigFile = %A_ScriptDir%\config.ini  ; 配置文件路径
 
 global PresetSection := "WindowSizePresets"  ; WindowSize.ahk 所需的全局变量
+global g_ScaleStep := 0.05                   ; WindowScaling.ahk 所需的全局变量
 
 ; ========================
 ; 全局功能开关
@@ -22,6 +23,7 @@ global WindowSize
 global PreventHibernation
 global ReconstructionWindow
 global EnsureNumLock
+global WindowScaling
 global MasterSwitch  ; 总开关
 ;global QuickWorkbench   := true
 
@@ -41,7 +43,7 @@ InitConfig() {
     global ConfigFile
     global PastePureText, WindowOnTop, WindowCenter, AltMove
     global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
-    global PreventHibernation, ReconstructionWindow, EnsureNumLock
+    global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global MasterSwitch
 
     ; 如果配置文件不存在，则生成默认配置
@@ -58,6 +60,7 @@ InitConfig() {
         IniWrite, 0, %ConfigFile%, Settings, PreventHibernation
         IniWrite, 1, %ConfigFile%, Settings, ReconstructionWindow
         IniWrite, 1, %ConfigFile%, Settings, EnsureNumLock
+        IniWrite, 1, %ConfigFile%, Settings, WindowScaling
         IniWrite, 1, %ConfigFile%, Settings, MasterSwitch
     }
 
@@ -98,6 +101,9 @@ InitConfig() {
     IniRead, EnsureNumLock, %ConfigFile%, Settings, EnsureNumLock, 1
     EnsureNumLock := (EnsureNumLock = 1)
 
+    IniRead, WindowScaling, %ConfigFile%, Settings, WindowScaling, 1
+    WindowScaling := (WindowScaling = 1)
+
     IniRead, MasterSwitch, %ConfigFile%, Settings, MasterSwitch, 1
     MasterSwitch := (MasterSwitch = 1)
 }
@@ -109,7 +115,7 @@ SaveConfig() {
     global ConfigFile
     global PastePureText, WindowOnTop, WindowCenter, AltMove
     global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
-    global PreventHibernation, ReconstructionWindow, EnsureNumLock
+    global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global MasterSwitch
 
     IniWrite, % PastePureText ? 1 : 0, %ConfigFile%, Settings, PastePureText
@@ -123,6 +129,7 @@ SaveConfig() {
     IniWrite, % PreventHibernation ? 1 : 0, %ConfigFile%, Settings, PreventHibernation
     IniWrite, % ReconstructionWindow ? 1 : 0, %ConfigFile%, Settings, ReconstructionWindow
     IniWrite, % EnsureNumLock ? 1 : 0, %ConfigFile%, Settings, EnsureNumLock
+    IniWrite, % WindowScaling ? 1 : 0, %ConfigFile%, Settings, WindowScaling
     IniWrite, % MasterSwitch ? 1 : 0, %ConfigFile%, Settings, MasterSwitch
 }
 
@@ -146,6 +153,7 @@ Menu, Tray, Add, 修改窗口尺寸 (Alt+Z), Toggle_WindowSize
 Menu, Tray, Add, 重构窗口 (Alt+T), Toggle_ReconstructionWindow
 Menu, Tray, Add, 防止休眠, Toggle_PreventHibernation
 Menu, Tray, Add, 确保启用Num Lock, Toggle_EnsureNumLock
+Menu, Tray, Add, 窗口缩放, Toggle_WindowScaling
 
 Menu, Tray, Add
 Menu, Tray, Add, 重启程序, RestartScript
@@ -202,14 +210,15 @@ ShowSettingsWindow() {
     Gui, Settings:Add, Checkbox, x30 y170 w200 h20 vWindowCenterCheck gWindowCenterChange, 窗口居中 (Alt+C)
     Gui, Settings:Add, Checkbox, x30 y195 w200 h20 vAltMoveCheck gAltMoveChange, 移动窗口 (Alt+左键)
     Gui, Settings:Add, Checkbox, x30 y220 w200 h20 vMinimizeWindowCheck gMinimizeWindowChange, 最小化窗口 (Alt+A/M)
+    Gui, Settings:Add, Checkbox, x270 y120 w200 h20 vBorderlessWindowCheck gBorderlessWindowChange, 无边框化窗口 (Alt+B)
     
     ; 第二列
-    Gui, Settings:Add, Checkbox, x270 y120 w200 h20 vBorderlessWindowCheck gBorderlessWindowChange, 无边框化窗口 (Alt+B)
     Gui, Settings:Add, Checkbox, x270 y145 w200 h20 vSwitchProgramWindowsCheck gSwitchProgramWindowsChange, 切换程序窗口
     Gui, Settings:Add, Checkbox, x270 y170 w200 h20 vWindowSizeCheck gWindowSizeChange, 修改窗口尺寸 (Alt+Z)
     Gui, Settings:Add, Checkbox, x270 y195 w200 h20 vPreventHibernationCheck gPreventHibernationChange, 防止休眠
     Gui, Settings:Add, Checkbox, x270 y220 w200 h20 vReconstructionWindowCheck gReconstructionWindowChange, 重构窗口 (Alt+T)
     Gui, Settings:Add, Checkbox, x30 y250 w200 h20 vEnsureNumLockCheck gEnsureNumLockChange, 确保启用Num Lock
+    Gui, Settings:Add, Checkbox, x270 y250 w200 h20 vWindowScalingCheck gWindowScalingChange, 窗口缩放 (Ctrl+Shift+滚轮)
 
     ; 功能说明
     Gui, Settings:Add, Text, x30 y250 w440 h80 +Wrap, 提示：`n• 总开关关闭时，所有功能将被禁用`n• 快捷键功能需要对应的功能模块启用才能生效`n• 防止休眠功能会阻止系统自动进入休眠状态`n• 双击托盘图标可快速打开此设置窗口
@@ -257,6 +266,7 @@ return
 UpdateSettingsUI() {
     global MasterSwitch, PastePureText, WindowOnTop, WindowCenter, AltMove
     global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize, PreventHibernation
+    global ReconstructionWindow, EnsureNumLock, WindowScaling
     
     ; 更新复选框状态
     GuiControl, Settings:, MasterSwitchCheck, %MasterSwitch%
@@ -273,6 +283,7 @@ UpdateSettingsUI() {
     GuiControl, Settings:, PreventHibernationCheck, % (MasterSwitch && PreventHibernation)
     GuiControl, Settings:, ReconstructionWindowCheck, % (MasterSwitch && ReconstructionWindow)
     GuiControl, Settings:, EnsureNumLockCheck, % (MasterSwitch && EnsureNumLock)
+    GuiControl, Settings:, WindowScalingCheck, % (MasterSwitch && WindowScaling)
     
     ; 根据总开关状态启用/禁用子功能控件
     EnableState := MasterSwitch ? "Enable" : "Disable"
@@ -287,6 +298,7 @@ UpdateSettingsUI() {
     GuiControl, Settings:%EnableState%, PreventHibernationCheck
     GuiControl, Settings:%EnableState%, ReconstructionWindowCheck
     GuiControl, Settings:%EnableState%, EnsureNumLockCheck
+    GuiControl, Settings:%EnableState%, WindowScalingCheck
 }
 
 ; ========================
@@ -378,6 +390,13 @@ EnsureNumLockChange:
     SaveConfig()
 return
 
+WindowScalingChange:
+    Gui, Settings:Submit, NoHide
+    WindowScaling := WindowScalingCheck
+    UpdateMenu()
+    SaveConfig()
+return
+
 ; ========================
 ; 引入功能模块
 ; ========================
@@ -392,6 +411,7 @@ return
 #Include %A_ScriptDir%\WindowSize.ahk
 #Include %A_ScriptDir%\PreventHibernation.ahk
 #Include %A_ScriptDir%\ReconstructionWindow.ahk
+#Include %A_ScriptDir%\WindowScaling.ahk
 
 return  ; 主线程到此结束，等待事件
 
@@ -474,6 +494,11 @@ UpdateMenu() {
         Menu, Tray, Check, 确保启用Num Lock
     else
         Menu, Tray, UnCheck, 确保启用Num Lock
+
+    if (MasterSwitch && WindowScaling)
+        Menu, Tray, Check, 窗口缩放
+    else
+        Menu, Tray, UnCheck, 窗口缩放
         
     SaveConfig()
 
@@ -554,6 +579,11 @@ return
 
 Toggle_EnsureNumLock:
     EnsureNumLock := !EnsureNumLock
+    UpdateMenu()
+return
+
+Toggle_WindowScaling:
+    WindowScaling := !WindowScaling
     UpdateMenu()
 return
 
