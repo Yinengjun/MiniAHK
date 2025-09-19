@@ -52,6 +52,47 @@ global IL
 global IconCache := {}
 global filesToLoadIcons := []
 global currentIconIndex := 1
+global DefaultIcons := {}
+
+; 初始化默认图标映射
+InitDefaultIcons()
+
+InitDefaultIcons() {
+    global DefaultIcons
+    
+    ; 预定义一些常见的文件类型图标 (shell32.dll图标索引)
+    DefaultIcons["txt"] := 70
+    DefaultIcons["doc"] := 1
+    DefaultIcons["docx"] := 1
+    DefaultIcons["xls"] := 1
+    DefaultIcons["xlsx"] := 1
+    DefaultIcons["ppt"] := 1
+    DefaultIcons["pptx"] := 1
+    DefaultIcons["pdf"] := 1
+    DefaultIcons["jpg"] := 71
+    DefaultIcons["jpeg"] := 71
+    DefaultIcons["png"] := 71
+    DefaultIcons["gif"] := 71
+    DefaultIcons["bmp"] := 71
+    DefaultIcons["ico"] := 71
+    DefaultIcons["mp3"] := 108
+    DefaultIcons["mp4"] := 109
+    DefaultIcons["avi"] := 109
+    DefaultIcons["mkv"] := 109
+    DefaultIcons["zip"] := 174
+    DefaultIcons["rar"] := 174
+    DefaultIcons["7z"] := 174
+    DefaultIcons["exe"] := 2
+    DefaultIcons["msi"] := 2
+    DefaultIcons["bat"] := 156
+    DefaultIcons["cmd"] := 156
+    DefaultIcons["reg"] := 68
+    DefaultIcons["ini"] := 70
+    DefaultIcons["cfg"] := 70
+    DefaultIcons["log"] := 70
+    DefaultIcons["folder"] := 4  ; 文件夹图标
+    DefaultIcons["default"] := 1  ; 默认文件图标
+}
 
 ShowLauncher:
     ; 防止快速连续触发
@@ -72,10 +113,6 @@ ShowLauncher:
 
     ; 销毁旧窗口和旧 ImageList
     Gui, Destroy
-    ;if (IL) {
-    ;    IL_Destroy(IL)
-    ;    Sleep, 20  ; 给资源释放一点时间
-    ;}
 
     Gui, +AlwaysOnTop -Caption +ToolWindow +LastFound
     Gui, Margin, 0, 0
@@ -404,12 +441,8 @@ AutoClose:
 return
 
 ; ========================
-; 加载文件
+; 加载文件 - 改进版本
 ; ========================
-global IconCache := {}
-global filesToLoadIcons := []
-global currentIconIndex := 1
-
 LoadFiles(subdir) {
     global BaseFolder, IL, IconCache, filesToLoadIcons, currentIconIndex
     
@@ -428,10 +461,10 @@ LoadFiles(subdir) {
         
     filesToLoadIcons := []
     
-    ; 步骤1：快速填充列表，并把所有文件路径存入列表
+    ; 收集所有文件
     Loop, Files, %folder%\*
     {
-        filesToLoadIcons.InsertAt(A_Index, A_LoopFileFullPath)
+        filesToLoadIcons.Push(A_LoopFileFullPath)
     }
 
     ; 如果没有文件，直接返回
@@ -439,33 +472,40 @@ LoadFiles(subdir) {
         return
     }
 
-    ; 步骤2：立即加载并显示第一个图标
-    firstFilePath := filesToLoadIcons[1]
-    firstIconIndex := GetIconIndex(firstFilePath)
+    ; 第一步：立即加载前5个文件的图标和名称
+    immediateLoadCount := Min(5, filesToLoadIcons.MaxIndex())
     
-    SplitPath, firstFilePath, name
-    LV_Add("Icon" firstIconIndex, name, firstFilePath)
-    
-    ; 步骤3：填充剩余的项目，不带图标
-    Loop, % filesToLoadIcons.MaxIndex() - 1
+    Loop, %immediateLoadCount%
     {
-        index := A_Index + 1
+        filePath := filesToLoadIcons[A_Index]
+        iconIndex := GetIconIndex(filePath)
+        
+        SplitPath, filePath, name
+        LV_Add("Icon" iconIndex, name, filePath)
+    }
+    
+    ; 第二步：添加剩余文件（暂时不加载图标）
+    Loop, % filesToLoadIcons.MaxIndex() - immediateLoadCount
+    {
+        index := immediateLoadCount + A_Index
         filePath := filesToLoadIcons[index]
         SplitPath, filePath, name
         LV_Add("", name, filePath)
     }
     
-    ; 步骤4：启动异步加载其余图标的定时器
-    currentIconIndex := 2
-    SetTimer, LoadIcons, 1
+    ; 第三步：启动异步加载剩余图标
+    if (filesToLoadIcons.MaxIndex() > immediateLoadCount) {
+        currentIconIndex := immediateLoadCount + 1
+        SetTimer, LoadIcons, 10
+    }
 }
 
-; 异步加载图标的函数
+; 异步加载图标的函数 - 改进版本
 LoadIcons:
-    global BaseFolder, IL, IconCache, filesToLoadIcons, currentIconIndex
+    global filesToLoadIcons, currentIconIndex
     
-    ; 每次加载 10 个，提高速度
-    batchSize := 10
+    ; 每次处理3个图标，平衡速度和响应性
+    batchSize := 3
     
     Loop, %batchSize% {
         if (currentIconIndex > filesToLoadIcons.MaxIndex()) {
@@ -474,7 +514,6 @@ LoadIcons:
         }
 
         filePath := filesToLoadIcons[currentIconIndex]
-
         iconIndex := GetIconIndex(filePath)
 
         ; 更新 ListView
@@ -484,44 +523,175 @@ LoadIcons:
     }
 return
 
-; 新增辅助函数：获取图标索引（处理快捷方式和缓存）
+; ========================
+; 改进的图标获取函数
+; ========================
 GetIconIndex(filePath) {
-    global IL, IconCache
+    global IL, IconCache, DefaultIcons
     
+    ; 构建缓存键
+    cacheKey := filePath
+    
+    ; 如果缓存中存在，直接返回
+    if IconCache.HasKey(cacheKey) {
+        return IconCache[cacheKey]
+    }
+    
+    iconIndex := 0
     targetPath := ""
-    SplitPath, filePath, , , ext
+    SplitPath, filePath, fileName, fileDir, ext, nameNoExt
     
+    ; 处理不同类型的文件
     if (ext = "lnk") {
-        target := GetShortcutTarget(filePath)
-        if (FileExist(target))
-            targetPath := target
-        else
-            targetPath := filePath
+        ; 快捷方式：获取目标路径和图标
+        iconIndex := GetShortcutIcon(filePath)
     } else if (ext = "url") {
-        ; 网页快捷方式使用默认浏览器图标
-        targetPath := "C:\Windows\System32\shell32.dll"
+        ; 网页快捷方式
+        iconIndex := GetUrlIcon(filePath)
+    } else if (FileExist(filePath "\.")) {
+        ; 文件夹
+        iconIndex := IL_Add(IL, "C:\Windows\System32\shell32.dll", DefaultIcons["folder"])
     } else {
-        targetPath := filePath
+        ; 普通文件
+        iconIndex := GetFileIcon(filePath, ext)
     }
     
-    if IconCache.HasKey(targetPath) {
-        return IconCache[targetPath]
-    } else {
-        if (ext = "url") {
-            iconIndex := IL_Add(IL, targetPath, 13)  ; shell32.dll 中的浏览器图标
+    ; 如果获取失败，使用默认图标
+    if (iconIndex <= 0) {
+        if DefaultIcons.HasKey(ext) {
+            iconIndex := IL_Add(IL, "C:\Windows\System32\shell32.dll", DefaultIcons[ext])
         } else {
-            iconIndex := IL_Add(IL, targetPath, 0)
+            iconIndex := IL_Add(IL, "C:\Windows\System32\shell32.dll", DefaultIcons["default"])
         }
-        IconCache[targetPath] := iconIndex
-        return iconIndex
     }
+    
+    ; 缓存结果
+    IconCache[cacheKey] := iconIndex
+    return iconIndex
 }
 
-; 解析快捷方式目标
-GetShortcutTarget(path) {
-    shell := ComObjCreate("WScript.Shell")
-    sc := shell.CreateShortcut(path)
-    return sc.TargetPath
+; 获取快捷方式图标
+GetShortcutIcon(lnkPath) {
+    global IL
+    
+    try {
+        shell := ComObjCreate("WScript.Shell")
+        sc := shell.CreateShortcut(lnkPath)
+        
+        targetPath := sc.TargetPath
+        iconLocation := sc.IconLocation
+        
+        ; 优先使用自定义图标位置
+        if (iconLocation != "") {
+            ; 解析图标位置 "路径,索引"
+            iconParts := StrSplit(iconLocation, ",")
+            iconFile := iconParts[1]
+            iconIndex := iconParts.Length() > 1 ? iconParts[2] : 0
+            
+            if FileExist(iconFile) {
+                return IL_Add(IL, iconFile, iconIndex)
+            }
+        }
+        
+        ; 使用目标文件的图标
+        if FileExist(targetPath) {
+            SplitPath, targetPath, , , targetExt
+            return GetFileIcon(targetPath, targetExt)
+        }
+        
+    } catch e {
+        ; 忽略错误，使用默认图标
+    }
+    
+    return 0
+}
+
+; 获取URL快捷方式图标
+GetUrlIcon(urlPath) {
+    global IL
+    
+    try {
+        ; 尝试读取自定义图标
+        IniRead, iconFile, %urlPath%, InternetShortcut, IconFile
+        IniRead, iconIndex, %urlPath%, InternetShortcut, IconIndex, 0
+        
+        if (iconFile != "ERROR" && FileExist(iconFile)) {
+            return IL_Add(IL, iconFile, iconIndex)
+        }
+        
+    } catch e {
+        ; 忽略错误
+    }
+    
+    ; 使用默认浏览器图标
+    return IL_Add(IL, "C:\Windows\System32\shell32.dll", 13)
+}
+
+; 获取普通文件图标
+GetFileIcon(filePath, ext) {
+    global IL, DefaultIcons
+    
+    ; EXE文件尝试提取自身图标
+    if (ext = "exe" || ext = "ico") {
+        iconIndex := IL_Add(IL, filePath, 0)
+        if (iconIndex > 0)
+            return iconIndex
+    }
+    
+    ; DLL文件尝试提取图标
+    if (ext = "dll") {
+        iconIndex := IL_Add(IL, filePath, 0)
+        if (iconIndex > 0)
+            return iconIndex
+    }
+    
+    ; 使用系统关联的图标（通过注册表）
+    iconIndex := GetSystemFileIcon(filePath, ext)
+    if (iconIndex > 0)
+        return iconIndex
+    
+    ; 使用预定义的默认图标
+    if DefaultIcons.HasKey(ext) {
+        return IL_Add(IL, "C:\Windows\System32\shell32.dll", DefaultIcons[ext])
+    }
+    
+    return 0
+}
+
+; 通过系统关联获取文件图标
+GetSystemFileIcon(filePath, ext) {
+    global IL
+    
+    if (ext = "")
+        return 0
+    
+    try {
+        ; 通过SHGetFileInfo获取系统图标
+        VarSetCapacity(SHFILEINFO, 352, 0)
+        
+        ; SHGFI_ICON = 0x100, SHGFI_SMALLICON = 0x1, SHGFI_USEFILEATTRIBUTES = 0x10
+        hIcon := DllCall("shell32\SHGetFileInfoW"
+            , "WStr", filePath
+            , "UInt", 0
+            , "Ptr", &SHFILEINFO
+            , "UInt", 352
+            , "UInt", 0x111
+            , "Ptr") ; SHGFI_ICON | SHGFI_SMALLICON | SHGFI_USEFILEATTRIBUTES
+        
+        if (hIcon) {
+            hIcon := NumGet(SHFILEINFO, 0, "Ptr")
+            if (hIcon) {
+                iconIndex := IL_Add(IL, "HICON:" . hIcon)
+                DllCall("DestroyIcon", "Ptr", hIcon)
+                return iconIndex
+            }
+        }
+        
+    } catch e {
+        ; 忽略错误
+    }
+    
+    return 0
 }
 
 ; ========================
@@ -694,3 +864,23 @@ return
 
 ExitScript:
     ExitApp
+
+; ========================
+; 辅助函数
+; ========================
+
+; 获取最小值
+Min(a, b) {
+    return a < b ? a : b
+}
+
+; 解析快捷方式目标（保留原有功能）
+GetShortcutTarget(path) {
+    try {
+        shell := ComObjCreate("WScript.Shell")
+        sc := shell.CreateShortcut(path)
+        return sc.TargetPath
+    } catch e {
+        return ""
+    }
+}
