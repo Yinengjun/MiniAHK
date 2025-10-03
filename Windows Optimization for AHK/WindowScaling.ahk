@@ -4,7 +4,11 @@ global g_ScaleStep := 0.05              ; 缩放步长 (5%)
 global g_MinWindowSize := 100            ; 最小窗口尺寸
 
 ; 窗口类型排除列表
-global g_ExcludedClasses := ["Shell_TrayWnd", "DV2ControlHost", "MsgrIMEWindowClass", "SysShadow"]
+global g_ExcludedClasses := ["Shell_TrayWnd", "DV2ControlHost", "MsgrIMEWindowClass", "SysShadow"
+    , "Progman", "WorkerW", "Shell_SecondaryTrayWnd", "NotifyIconOverflowWindow"
+    , "TrayNotifyWnd", "tooltips_class32", "MSTaskSwWClass", "ForegroundStaging"
+    , "ApplicationFrameWindow", "Windows.UI.Core.CoreWindow", "ImmersiveLauncher"
+    , "ImmersiveBackground", "EdgeUiInputTopWndClass", "NativeHWNDHost"]
 
 #If WindowScaling
 
@@ -101,6 +105,26 @@ IsWindowScalable(windowInfo) {
     if (!(style & 0x10000000)) ; WS_VISIBLE
         return false
         
+    ; 检查是否为系统进程
+    systemProcesses := ["dwm.exe", "winlogon.exe", "csrss.exe", "smss.exe", "wininit.exe"]
+    for index, sysProcess in systemProcesses {
+        if (windowInfo.processName = sysProcess)
+            return false
+    }
+    
+    ; 检查窗口标题是否包含敏感关键词
+    sensitiveKeywords := ["安全", "Security", "Task Manager", "任务管理器", "System", "系统"]
+    for index, keyword in sensitiveKeywords {
+        if (InStr(windowInfo.title, keyword))
+            return false
+    }
+    
+    ; 检查是否为全屏窗口（避免误操作游戏等）
+    SysGet, screenWidth, 0
+    SysGet, screenHeight, 1
+    if (windowInfo.width >= screenWidth && windowInfo.height >= screenHeight)
+        return false
+
     return true
 }
 
