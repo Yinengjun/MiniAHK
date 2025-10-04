@@ -1,4 +1,4 @@
-; PreventHibernation.ahk
+﻿; PreventHibernation.ahk
 #Persistent
 #SingleInstance Force
 

@@ -1,4 +1,4 @@
-#NoEnv
+﻿#NoEnv
 #SingleInstance Force
 SetWorkingDir %A_ScriptDir%
 

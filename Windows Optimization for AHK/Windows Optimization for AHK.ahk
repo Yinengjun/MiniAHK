@@ -1,4 +1,4 @@
-; -*- coding: UTF-8 -*-
+﻿; -*- coding: UTF-8 -*-
 
 #NoEnv                      ; 不检查空变量
 #SingleInstance Force        ; 强制单实例运行

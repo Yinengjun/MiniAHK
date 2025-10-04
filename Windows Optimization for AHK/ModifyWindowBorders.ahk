@@ -1,4 +1,4 @@
-; 窗口边框编辑器 - AutoHotkey v1
+﻿; 窗口边框编辑器 - AutoHotkey v1
 ; Alt + 鼠标右键进入编辑模式，通过鼠标移动调整窗口边框
 ; 受 global ModifyWindowBorders 控制
 

@@ -1,4 +1,4 @@
-global WindowScaling := true
+﻿global WindowScaling := true
 
 global g_ScaleStep := 0.05              ; 缩放步长 (5%)
 global g_MinWindowSize := 100            ; 最小窗口尺寸
