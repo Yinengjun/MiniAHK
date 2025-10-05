@@ -5,7 +5,7 @@
 !b::  ; Alt + B
 {
     global BorderlessWindow
-    if (!BorderlessWindow)
+    if (!BorderlessWindow || !MasterSwitch)
         return
   
     WinGet, style, Style, A  ; 获取当前活动窗口的样式

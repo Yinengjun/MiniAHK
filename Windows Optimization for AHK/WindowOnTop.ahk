@@ -1,6 +1,6 @@
 ﻿^+e::                          ; Ctrl + Shift + E
 global WindowOnTop
-if (!WindowOnTop)
+if (!WindowOnTop || !MasterSwitch)
     return
 
 WinSet, AlwaysOnTop,, A        ; 切换当前活动窗口置顶状态

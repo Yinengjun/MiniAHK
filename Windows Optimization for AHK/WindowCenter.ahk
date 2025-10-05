@@ -1,6 +1,6 @@
 ﻿!c::  ; Alt+C 窗口居中
     global WindowCenter
-    if (!WindowCenter)
+    if (!WindowCenter || !MasterSwitch)
         return
 
     WinGetPos, X, Y, W, H, A

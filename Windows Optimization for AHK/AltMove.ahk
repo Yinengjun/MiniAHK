@@ -15,7 +15,7 @@ global ww := 0, wh := 0
 ; ------------------------
 ; Alt + 左键拖动窗口
 ; ------------------------
-#If AltMove
+#If (AltMove && MasterSwitch)
 !LButton::
 {
     if (dragging)  ; 已经在拖动中，不重复安装钩子

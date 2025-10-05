@@ -10,7 +10,7 @@ global g_ExcludedClasses := ["Shell_TrayWnd", "DV2ControlHost", "MsgrIMEWindowCl
     , "ApplicationFrameWindow", "Windows.UI.Core.CoreWindow", "ImmersiveLauncher"
     , "ImmersiveBackground", "EdgeUiInputTopWndClass", "NativeHWNDHost"]
 
-#If WindowScaling
+#If (WindowScaling && MasterSwitch)
 
 ; Ctrl+Shift+滚轮向上 - 放大窗口
 ^+WheelUp::

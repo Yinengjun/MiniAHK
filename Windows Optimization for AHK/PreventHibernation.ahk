@@ -11,7 +11,7 @@ SetPreventHibernation(state) {
     global PreventHibernation
     PreventHibernation := state
 
-    if (PreventHibernation) {
+    if (PreventHibernation && MasterSwitch) {
         KeepAwake()
     } else {
         AllowSleep()

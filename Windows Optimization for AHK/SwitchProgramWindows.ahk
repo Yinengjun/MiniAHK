@@ -7,13 +7,13 @@ global SwitchProgramWindows
 
 ; Ctrl+Alt+鼠标滚轮
 ^!WheelUp::
-    if (!SwitchProgramWindows)
+    if (!SwitchProgramWindows || !MasterSwitch)
         return
     SwitchAppWindow("Up")
 return
 
 ^!WheelDown::
-    if (!SwitchProgramWindows)
+    if (!SwitchProgramWindows || !MasterSwitch)
         return
     SwitchAppWindow("Down")
 return

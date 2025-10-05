@@ -1,7 +1,7 @@
 ﻿^+v::
 {
     global PastePureText   ; 让这个变量和入口文件的全局变量连接
-    if (!PastePureText)
+    if (!PastePureText || !MasterSwitch)
         return
         
     ; 备份剪贴板

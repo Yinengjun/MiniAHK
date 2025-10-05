@@ -41,7 +41,7 @@ global MWB_ScreenRight := 0
 global MWB_ScreenBottom := 0
 
 ; Alt + 鼠标右键开始编辑
-#If ModifyWindowBorders
+#If (ModifyWindowBorders && MasterSwitch)
 Alt & RButton::
     if (!MWB_EditMode) {
         MWB_StartEditMode()

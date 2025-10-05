@@ -301,6 +301,8 @@ HandleFeatureChange(label) {
     global PastePureText, WindowOnTop, WindowCenter, AltMove
     global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
+    global ModifyWindowBorders
+
     global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck
     global MinimizeWindowCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
     global WindowSizeCheck, PreventHibernationCheck, ReconstructionWindowCheck
@@ -326,11 +328,12 @@ TabChange:
 return
 
 UpdateSettingsUI() {
-    global MasterSwitch, FeatureModules
+    global MasterSwitch, FeatureModules, MasterSwitchCheck
     global PastePureText, WindowOnTop, WindowCenter, AltMove
     global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
-    global MasterSwitchCheck
+    global ModifyWindowBorders
+    
     global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck
     global MinimizeWindowCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
     global WindowSizeCheck, PreventHibernationCheck, ReconstructionWindowCheck
