@@ -1,26 +1,26 @@
-﻿#NoEnv                         ; 避免使用过时的环境变量，保持脚本行为一致
+﻿#NoEnv                          ; 避免使用过时的环境变量，保持脚本行为一致
 #SingleInstance Force           ; 保证脚本单实例运行，防止重复启动
 SetBatchLines, -1               ; 让脚本尽可能快地执行，不做自动延迟
 DetectHiddenWindows, On         ; 允许操作隐藏窗口
-Menu, Tray, NoStandard           ; 禁用默认托盘菜单
+Menu, Tray, NoStandard          ; 禁用默认托盘菜单
 
 ; 添加右键菜单项
-Menu, Tray, Add, 设置, ShowSettings   ; 设置
-Menu, Tray, Add, 重启程序, RestartApp   ; 重启程序
-Menu, Tray, Add, 退出程序, ExitApp   ; 退出程序
+Menu, Tray, Add, 设置, ShowSettings
+Menu, Tray, Add, 重启程序, RestartApp
+Menu, Tray, Add, 退出程序, ExitApp
 
 ; ---------- 配置文件路径 ----------  
 ConfigFile := A_ScriptDir . "\config.ini"
 
 ; ---------- 默认配置值 ----------  
-DefaultInterval := 1000                 ; 刷新间隔 (毫秒)，控制网速刷新频率
-DefaultGuiWidth := 120                  ; GUI 宽度
-DefaultGuiHeight := 44                  ; GUI 高度
-DefaultFontName := "Segoe UI Variable"  ; 字体名称
+DefaultInterval := 1000                  ; 刷新间隔 (毫秒)，控制网速刷新频率
+DefaultGuiWidth := 120                   ; GUI 宽度
+DefaultGuiHeight := 44                   ; GUI 高度
+DefaultFontName := "Segoe UI Variable"   ; 字体名称
 DefaultFontSize := 11                    ; 字号
 DefaultFontWeight := "Bold"              ; 字体加粗
-DefaultBgColorMode := "深色预设"         ; 背景色模式：浅色预设、深色预设、自定义
-DefaultBgColor := "0x0B1113"            ; GUI 背景颜色（自定义时使用）
+DefaultBgColorMode := "深色预设"          ; 背景色模式：浅色预设、深色预设、自定义
+DefaultBgColor := "0x0B1113"             ; GUI 背景颜色（自定义时使用）
 DefaultBgTransparency := 254             ; 背景透明度 (0-254，255为只显示文字)
 DefaultNumRightMargin := 6               ; 数字右侧空白
 DefaultArrowWidth := 24                  ; 箭头宽度
@@ -39,25 +39,27 @@ DefaultEMAFactor := 0.35                 ; EMA 指数平滑因子，用于平滑
 DefaultConfirmNeeded := 2                ; 防抖确认次数：同一颜色连续出现多少次才真正更新
 DefaultAutoRestart := false              ; 保存后自动重启不二次确认
 DefaultMouseThrough := true              ; 鼠标穿透
+DefaultDisplayTarget := "主屏幕"         ; 显示器（主屏幕/显示器N/全部）
 
 ; ---------- 读取配置文件 ----------  
 LoadConfig()
 
 ; ---------- GUI 元素位置计算 ----------  
 NumWidth := GuiWidth - ArrowWidth - NumRightMargin  ; 数字控件宽度
-UpY := 4                                          ; 上行数字纵坐标
-DownY := 22                                       ; 下行数字纵坐标
-ArrowX := NumWidth                                ; 箭头横坐标
+UpY := 4                                            ; 上行数字纵坐标
+DownY := 22                                         ; 下行数字纵坐标
+ArrowX := NumWidth                                  ; 箭头横坐标
 
 ; ---------- 全局变量 ----------  
-global UpNum, UpArrow, DownNum, DownArrow        ; GUI 控件变量
-global emaUp := 0, emaDown := 0                 ; 上下行 EMA 平滑值
-global pendingUp := "", pendingDown := ""       ; 上下行候选颜色（防抖用）
+global UpNum, UpArrow, DownNum, DownArrow         ; GUI 控件变量
+global emaUp := 0, emaDown := 0                   ; 上下行 EMA 平滑值
+global pendingUp := "", pendingDown := ""         ; 上下行候选颜色（防抖用）
 global pendingCountUp := 0, pendingCountDown := 0 ; 上下行防抖计数
-global lastColorUp := "", lastColorDown := ""   ; 上下行最后应用颜色
-global lastTextUp := "", lastTextDown := ""     ; 上下行最后显示文本
-global recv := 0, sent := 0                     ; 当前网速值
+global lastColorUp := "", lastColorDown := ""     ; 上下行最后应用颜色
+global lastTextUp := "", lastTextDown := ""       ; 上下行最后显示文本
+global recv := 0, sent := 0                       ; 当前网速值
 global q, item, sSent, sRecv, candidateUp, candidateDown ; 临时变量
+global Display  ; 目标显示器文本（主屏幕/显示器N/全部）
 
 ; ---------- 初始化 WMI 接口，用于获取网速数据 ----------  
 global wmi
@@ -112,6 +114,7 @@ LoadConfig()
     IniRead, PositionCorner, %ConfigFile%, Position, Corner, %DefaultPositionCorner%
     IniRead, OffsetX, %ConfigFile%, Position, OffsetX, %DefaultOffsetX%
     IniRead, OffsetY, %ConfigFile%, Position, OffsetY, %DefaultOffsetY%
+    IniRead, Display, %ConfigFile%, GUI, Display, %DefaultDisplayTarget%
     
     IniRead, Thresh1, %ConfigFile%, Thresholds, Thresh1, %DefaultThresh1%
     IniRead, Thresh2, %ConfigFile%, Thresholds, Thresh2, %DefaultThresh2%
@@ -187,6 +190,7 @@ CreateDefaultConfig()
     IniWrite, %DefaultPositionCorner%, %ConfigFile%, Position, Corner
     IniWrite, %DefaultOffsetX%, %ConfigFile%, Position, OffsetX
     IniWrite, %DefaultOffsetY%, %ConfigFile%, Position, OffsetY
+    IniWrite, %DefaultDisplayTarget%, %ConfigFile%, GUI, Display
     
     IniWrite, %DefaultThresh1%, %ConfigFile%, Thresholds, Thresh1
     IniWrite, %DefaultThresh2%, %ConfigFile%, Thresholds, Thresh2
@@ -232,31 +236,65 @@ ShowSettings:
     Gui, Settings: Add, UpDown, vGuiHeightUD Range30-100, %GuiHeight%
     
     Gui, Settings: Add, Text, x20 y70, 字体名称:
-    Gui, Settings: Add, Edit, x100 y66 w120 vFontName, %FontName%
-    Gui, Settings: Add, Text, x240 y70, 字号:
-    Gui, Settings: Add, Edit, x270 y66 w30 vFontSize, %FontSize%
+    fontPresetList := "Segoe UI Variable|Segoe UI|Microsoft YaHei|Consolas|Cascadia Mono|Cascadia Code|Sarasa Mono SC|SimHei|SimSun|Arial|Times New Roman|自定义"
+    Gui, Settings: Add, DropDownList, x100 y66 w160 vFontNamePreset gFontNamePresetChange, %fontPresetList%
+    Gui, Settings: Add, Text, x270 y70 vFontNameCustomLabel, 自定义:
+    Gui, Settings: Add, Edit, x320 y66 w100 vFontNameCustom, %FontName%
+    
+    ; 初始化字体预设/自定义显示
+    if InStr("|" . fontPresetList . "|", "|" . FontName . "|")
+    {
+        GuiControl, Settings: ChooseString, FontNamePreset, %FontName%
+        GuiControl, Settings: Hide, FontNameCustom
+        GuiControl, Settings: Hide, FontNameCustomLabel
+    }
+    else
+    {
+        GuiControl, Settings: ChooseString, FontNamePreset, 自定义
+        GuiControl, Settings: Show, FontNameCustom
+        GuiControl, Settings: Show, FontNameCustomLabel
+    }
+
+    Gui, Settings: Add, Text, x20 y100, 字号:
+    Gui, Settings: Add, Edit, x60 y96 w40 vFontSize, %FontSize%
     Gui, Settings: Add, UpDown, vFontSizeUD Range8-24, %FontSize%
-    
-    Gui, Settings: Add, Text, x20 y100, 字体粗细:
-    Gui, Settings: Add, DropDownList, x100 y96 w80 vFontWeight, Normal|Bold||
+
+    Gui, Settings: Add, Text, x120 y100, 字体粗细:
+    Gui, Settings: Add, DropDownList, x180 y96 w80 vFontWeight, Normal|Bold||
     GuiControl, Settings: Choose, FontWeight, % (FontWeight = "Bold") ? 2 : 1
-    
+
+    ; 背景色模式 + 自定义色 + 预览
     Gui, Settings: Add, Text, x20 y130, 背景色模式:
     Gui, Settings: Add, DropDownList, x100 y126 w100 gBgColorModeChange vBgColorMode, 浅色预设|深色预设|自定义||
     GuiControl, Settings: Choose, BgColorMode, % (BgColorMode = "浅色预设") ? 1 : (BgColorMode = "深色预设") ? 2 : 3
-    
+
     Gui, Settings: Add, Text, x220 y130, 自定义背景色:
-    Gui, Settings: Add, Edit, x320 y126 w80 vBgColor, %BgColor%
-    
+    Gui, Settings: Add, Edit, x320 y126 w80 vBgColor gBgColorChanged, %BgColor%
+    Gui, Settings: Add, Progress, x405 y126 w30 h20 vPrevBgColor +Border, 100
+
+    if (BgColorMode != "自定义")
+    {
+        GuiControl, Settings: Disable, BgColor
+        GuiControl, Settings: Disable, PrevBgColor
+    }
+
     Gui, Settings: Add, Text, x20 y160, 背景透明度 (0-255):
     Gui, Settings: Add, Edit, x150 y156 w50 vBgTransparency, %BgTransparency%
     Gui, Settings: Add, UpDown, vBgTransparencyUD Range0-255, %BgTransparency%
     Gui, Settings: Add, Text, x210 y160, (0=完全透明，254=不透明，255=只显示文字)
-    
-    ; 根据当前模式启用/禁用自定义背景色输入框
-    if (BgColorMode != "自定义")
-        GuiControl, Settings: Disable, BgColor
-    
+
+    ; 显示器选择（多显示器支持）
+    SysGet, mCount, MonitorCount
+    dispOpt := "主屏幕|全部"
+    Loop, %mCount%
+        dispOpt .= "|" . "显示器" . A_Index
+    Gui, Settings: Add, Text, x20 y190, 显示器:
+    Gui, Settings: Add, DropDownList, x80 y186 w140 vDisplay, %dispOpt%
+    ; 初始化选择
+    if (Display = "")
+        Display := "主屏幕"
+    GuiControl, Settings: ChooseString, Display, %Display%
+
     ; 位置选项卡
     Gui, Settings: Tab, 位置
     Gui, Settings: Add, Text, x20 y40, 位置角落:
@@ -290,16 +328,20 @@ ShowSettings:
     ; 颜色选项卡
     Gui, Settings: Tab, 颜色
     Gui, Settings: Add, Text, x20 y40, 很低速颜色:
-    Gui, Settings: Add, Edit, x120 y36 w80 vColorVeryLow, %ColorVeryLow%
+    Gui, Settings: Add, Edit, x120 y36 w80 vColorVeryLow gColorEditChanged, %ColorVeryLow%
+    Gui, Settings: Add, Progress, x205 y36 w30 h20 vPrevVeryLow +Border, 100
     
     Gui, Settings: Add, Text, x20 y70, 低速颜色:
-    Gui, Settings: Add, Edit, x120 y66 w80 vColorLow, %ColorLow%
+    Gui, Settings: Add, Edit, x120 y66 w80 vColorLow gColorEditChanged, %ColorLow%
+    Gui, Settings: Add, Progress, x205 y66 w30 h20 vPrevLow +Border, 100
     
     Gui, Settings: Add, Text, x20 y100, 中速颜色:
-    Gui, Settings: Add, Edit, x120 y96 w80 vColorMed, %ColorMed%
+    Gui, Settings: Add, Edit, x120 y96 w80 vColorMed gColorEditChanged, %ColorMed%
+    Gui, Settings: Add, Progress, x205 y96 w30 h20 vPrevMed +Border, 100
     
     Gui, Settings: Add, Text, x20 y130, 高速颜色:
-    Gui, Settings: Add, Edit, x120 y126 w80 vColorHigh, %ColorHigh%
+    Gui, Settings: Add, Edit, x120 y126 w80 vColorHigh gColorEditChanged, %ColorHigh%
+    Gui, Settings: Add, Progress, x205 y126 w30 h20 vPrevHigh +Border, 100
     
     ; 高级选项卡
     Gui, Settings: Tab, 高级
@@ -319,24 +361,110 @@ ShowSettings:
     Gui, Settings: Add, Button, x270 y270 w60 h30 gCloseSettings, 取消
     Gui, Settings: Add, Button, x340 y270 w80 h30 gResetSettings, 恢复默认
     
+    ; 初始化颜色预览
+    Gosub, __InitColorPreview
     ; 显示设置窗口
     Gui, Settings: Show, w450 h320, 网速监控设置
 Return
+
+; ---------- 初始化/更新颜色预览 ----------
+__InitColorPreview:
+    Gui, Settings: Submit, NoHide
+    UpdateColorPreviews()
+Return
+
+ColorEditChanged:
+    Gui, Settings: Submit, NoHide
+    UpdateColorPreviews()
+Return
+
+BgColorChanged:
+    Gui, Settings: Submit, NoHide
+    UpdateColorPreviews()
+Return
+
+UpdateColorPreviews()
+{
+    ; 颜色输入为BGR（不带0x），直接用于Progress的c参数
+    global ColorVeryLow, ColorLow, ColorMed, ColorHigh, BgColorMode, BgColor
+    GuiControl, Settings: +c%ColorVeryLow%, PrevVeryLow
+    GuiControl, Settings: +c%ColorLow%, PrevLow
+    GuiControl, Settings: +c%ColorMed%, PrevMed
+    GuiControl, Settings: +c%ColorHigh%, PrevHigh
+
+    ; 背景色支持0xRRGGBB，需转换为BGR且去掉0x
+    if (BgColorMode = "自定义")
+    {
+        bgr := __RgbOrBgrToBgrNo0x(BgColor)
+        GuiControl, Settings: +c%bgr% +Background%bgr%, PrevBgColor
+        GuiControl, Settings: Enable, PrevBgColor
+    }
+    else
+    {
+        GuiControl, Settings: Disable, PrevBgColor
+    }
+}
+
+; 将可能的"0xRRGGBB"(RGB)或"RRGGBB"(BGR)统一转为"BGR"(无0x)
+__RgbOrBgrToBgrNo0x(c)
+{
+    s := Trim(c)
+    if (SubStr(s,1,2) = "0x" || SubStr(s,1,2) = "0X")
+    {
+        rgb := SubStr(s,3)
+        if (StrLen(rgb) = 6)
+        {
+            r := SubStr(rgb,1,2), g := SubStr(rgb,3,2), b := SubStr(rgb,5,2)
+            return b . g . r
+        }
+        return "000000"
+    }
+    if RegExMatch(s, "^[0-9A-Fa-f]{6}$")
+        return s
+    return "000000"
+}
 
 ; ---------- 背景色模式变化处理 ----------
 BgColorModeChange:
     Gui, Settings: Submit, NoHide
     if (BgColorMode = "自定义")
+    {
         GuiControl, Settings: Enable, BgColor
+        GuiControl, Settings: Enable, PrevBgColor
+    }
     else
+    {
         GuiControl, Settings: Disable, BgColor
+        GuiControl, Settings: Disable, PrevBgColor
+    }
+    UpdateColorPreviews()
+Return
+
+; ---------- 字体预设选择变化 ----------
+FontNamePresetChange:
+    Gui, Settings: Submit, NoHide
+    if (FontNamePreset = "自定义")
+    {
+        GuiControl, Settings: Show, FontNameCustom
+        GuiControl, Settings: Show, FontNameCustomLabel
+    }
+    else
+    {
+        GuiControl, Settings: Hide, FontNameCustom
+        GuiControl, Settings: Hide, FontNameCustomLabel
+    }
 Return
 
 ; ---------- 保存设置 ----------
 SaveSettings:
     Gui, Settings: Submit
-    
-    ; 清理数值中的逗号和空格，确保为纯数字
+
+    ; 合成字体名称：若选自定义则取自定义输入，否则取预设项
+    if (FontNamePreset = "自定义")
+        FontName := Trim(FontNameCustom)
+    else
+        FontName := Trim(FontNamePreset)
+
     Interval := RegExReplace(Interval, "[,\s]", "")
     GuiWidth := RegExReplace(GuiWidth, "[,\s]", "")
     GuiHeight := RegExReplace(GuiHeight, "[,\s]", "")
@@ -368,7 +496,7 @@ SaveSettings:
         Thresh3MB := 2
     if (ConfirmNeeded < 1 || ConfirmNeeded > 10)
         ConfirmNeeded := 2
-    
+
     ; 保存到配置文件
     IniWrite, %Interval%, %ConfigFile%, General, Interval
     IniWrite, %AutoRestart%, %ConfigFile%, General, AutoRestart
@@ -384,6 +512,7 @@ SaveSettings:
     IniWrite, %PositionCorner%, %ConfigFile%, Position, Corner
     IniWrite, %OffsetX%, %ConfigFile%, Position, OffsetX
     IniWrite, %OffsetY%, %ConfigFile%, Position, OffsetY
+    IniWrite, %Display%, %ConfigFile%, GUI, Display
     
     ; 转换阈值单位并保存
     IniWrite, % Thresh1KB*1024, %ConfigFile%, Thresholds, Thresh1
@@ -602,41 +731,67 @@ ApplyGuiTransparency()
     }
 }
 
-; ---------- 根据配置定位GUI ----------
+; ---------- 获取目标工作区（多显示器支持） ----------
+GetTargetWorkArea(ByRef sx, ByRef sy, ByRef sw, ByRef sh)
+{
+    global Display
+    if (Display = "全部")
+    {
+        SysGet, vLeft, 76   ; VirtualScreenLeft
+        SysGet, vTop, 77    ; VirtualScreenTop
+        SysGet, vW, 78      ; VirtualScreenWidth
+        SysGet, vH, 79      ; VirtualScreenHeight
+        sx := vLeft, sy := vTop, sw := vW, sh := vH
+        return
+    }
+    else if (Display = "主屏幕" || Display = "")
+    {
+        SysGet, pMon, MonitorPrimary
+        idx := pMon
+    }
+    else
+    {
+        ; 显示器N
+        idx := RegExReplace(Display, "\D", "")
+        if (idx = "")
+            idx := 1
+    }
+    SysGet, wa, MonitorWorkArea, %idx%
+    sx := waLeft, sy := waTop, sw := waRight - waLeft, sh := waBottom - waTop
+}
+
+; ---------- 根据配置定位GUI（支持选择显示器/全部虚拟屏幕） ----------
 PositionGui()
 {
     global GuiWidth, GuiHeight, PositionCorner, OffsetX, OffsetY
-    
-    ; 获取屏幕工作区大小
-    SysGet, screenW, 78
-    SysGet, screenH, 79
-    
-    ; 根据角落位置计算基础坐标 - 修正偏移逻辑
+    ; 取目标工作区坐标和宽高
+    GetTargetWorkArea(screenX, screenY, screenW, screenH)
+
     if (PositionCorner = "右下角")
     {
-        baseX := screenW - GuiWidth
-        baseY := screenH - GuiHeight
+        baseX := screenX + screenW - GuiWidth
+        baseY := screenY + screenH - GuiHeight
         x := baseX - OffsetX  ; 横向：正数向右偏移变为负数向左偏移
         y := baseY - OffsetY  ; 纵向：正数向上偏移变为负数向下偏移
     }
     else if (PositionCorner = "右上角")
     {
-        baseX := screenW - GuiWidth
-        baseY := 0
+        baseX := screenX + screenW - GuiWidth
+        baseY := screenY
         x := baseX - OffsetX  ; 横向：正数向右偏移变为负数向左偏移
         y := baseY + OffsetY  ; 纵向：正数向上偏移
     }
     else if (PositionCorner = "左下角")
     {
-        baseX := 0
-        baseY := screenH - GuiHeight
+        baseX := screenX
+        baseY := screenY + screenH - GuiHeight
         x := baseX + OffsetX  ; 横向：正数向右偏移
         y := baseY - OffsetY  ; 纵向：正数向上偏移变为负数向下偏移
     }
     else ; 左上角
     {
-        baseX := 0
-        baseY := 0
+        baseX := screenX
+        baseY := screenY
         x := baseX + OffsetX  ; 横向：正数向右偏移
         y := baseY + OffsetY  ; 纵向：正数向上偏移
     }
@@ -658,7 +813,7 @@ FormatSpeed(val)
 
 ; ---------- 重启脚本函数 ----------
 RestartApp:
-    Reload  ; 重启当前脚本
+    Reload
 Return
 
 ; ---------- 退出脚本 ----------
