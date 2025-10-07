@@ -241,8 +241,11 @@ ShowSettings:
     ; 常规选项卡
     Gui, Settings: Tab, 常规
     Gui, Settings: Add, Text, x20 y40, 刷新间隔 (毫秒):
-    Gui, Settings: Add, Edit, x140 y36 w80 vInterval, %Interval%
-    Gui, Settings: Add, UpDown, vIntervalUD Range100-5000, %Interval%
+    IntervalClean := RegExReplace(Interval, "[^\d-]", "") ; 去掉千分位/空白等
+    if (IntervalClean = "")
+        IntervalClean := 1000
+    Gui, Settings: Add, Edit, x140 y36 w80 vInterval +Number, %IntervalClean%
+    Gui, Settings: Add, UpDown, vIntervalUD Range100-5000 +0x80, %IntervalClean% ; +0x80=UDS_NOTHOUSANDS
     
     Gui, Settings: Add, Checkbox, x20 y70 vAutoRestart, 保存后重启不二次确认
     GuiControl, Settings:, AutoRestart, %AutoRestart%
