@@ -21,8 +21,8 @@ DefaultFontSize := 11                    ; 字号
 DefaultFontWeight := "Bold"              ; 字体加粗（字符串，用于 Gui, Font）
 DefaultBgColorMode := "深色预设"          ; 背景色模式：浅色预设、深色预设、自定义
 DefaultBgColor := "0x0B1113"             ; GUI 背景颜色（自定义时使用，0xRRGGBB）
-DefaultOnlyText := false               ; 是否只显示文字（与透明度互斥）
-DefaultBgTransparency := 255           ; 背景透明度 (0-255，255为不透明)
+DefaultOnlyText := false                 ; 是否只显示文字（与透明度互斥）
+DefaultBgTransparency := 255             ; 背景透明度 (0-255，255为不透明)
 DefaultNumRightMargin := 6               ; 数字右侧空白（像素）
 DefaultArrowWidth := 24                  ; 箭头宽度（像素）
 DefaultPositionCorner := "右下角"         ; 位置角落：右下角、右上角、左下角、左上角
@@ -41,6 +41,8 @@ DefaultConfirmNeeded := 2                ; 防抖确认次数：同一颜色连�
 DefaultAutoRestart := false              ; 保存后自动重启无需二次确认
 DefaultMouseThrough := true              ; 鼠标穿透（窗口是否允许鼠标穿透）
 DefaultDisplayTarget := "主屏幕"         ; 显示器（主屏幕/显示器N/全部）
+DefaultEnsureTopmost := false            ; 是否开启确保置顶的定时重申
+DefaultTopmostReassertMin := 10           ; 重申置顶周期，单位：分钟（默认为 10 分钟）
 
 ; ---------- 读取配置文件 ----------
 LoadConfig()
@@ -68,6 +70,7 @@ global recv := 0, sent := 0                       ; 当前网速瞬时值（累�
 
 global q, item, sSent, sRecv, candidateUp, candidateDown ; 临时变量与候选色
 global Display                                   ; 目标显示器文本（主屏幕/显示器N/全部）
+global hGui                                      ; GUI 窗口句柄
 
 ; ------------------------- 初始化 WMI 接口（用于获取网速数据） -------------------------
 global wmi, WmiWarned
@@ -104,6 +107,9 @@ CreateGuiAndShow(ColorVeryLow)
 ; ------------------------- 设置定时器：每 Interval 毫秒调用 UpdateNet -------------------------
 SetTimer, UpdateNet, %Interval%
 Gosub, UpdateNet   ; 立即执行一次更新
+
+SetTimer, ReassertTopmost, % (EnsureTopmost ? TopmostReassertMin*60000 : 0)
+
 Return              ; 脚本主流程到此挂起，等待事件与定时器
 
 ; ========================= 函数 / 子程序定义区 =========================
@@ -149,7 +155,10 @@ LoadConfig()
     IniRead, EnableSmoothing, %ConfigFile%, Advanced, EnableSmoothing, %DefaultEnableSmoothing%
     IniRead, EMAFactor, %ConfigFile%, Advanced, EMAFactor, %DefaultEMAFactor%
     IniRead, ConfirmNeeded, %ConfigFile%, Advanced, ConfirmNeeded, %DefaultConfirmNeeded%
-    
+
+    IniRead, EnsureTopmost, %ConfigFile%, Advanced, EnsureTopmost, %DefaultEnsureTopmost%
+    IniRead, TopmostReassertMin, %ConfigFile%, Advanced, TopmostReassertMin, %DefaultTopmostReassertMin%
+
     ; 清理数值中的逗号和空格，确保为纯数字，防止后续运算出错
     Interval := RegExReplace(Interval, "[,\s]", "")
     GuiWidth := RegExReplace(GuiWidth, "[,\s]", "")
@@ -164,7 +173,8 @@ LoadConfig()
     Thresh2 := RegExReplace(Thresh2, "[,\s]", "")
     Thresh3 := RegExReplace(Thresh3, "[,\s]", "")
     ConfirmNeeded := RegExReplace(ConfirmNeeded, "[,\s]", "")
-    
+    TopmostReassertMin := RegExReplace(TopmostReassertMin, "[^\d]", "")
+
     ; 验证和修正数值范围，避免用户或配置文件写入异常值导致界面错位或定时器过快
     if (Interval < 100 || Interval > 5000)
         Interval := DefaultInterval
@@ -176,7 +186,9 @@ LoadConfig()
         FontSize := DefaultFontSize
     if (BgTransparency < 0 || BgTransparency > 255)
         BgTransparency := DefaultBgTransparency
-    
+    if (TopmostReassertMin < 1 || TopmostReassertMin > 60)
+        TopmostReassertMin := DefaultTopmostReassertMin
+
     ; 处理背景色预设：若为浅/深预设则覆盖 BgColor
     if (BgColorMode = "浅色预设")
         BgColor := "0xF5F5F5"
@@ -226,6 +238,9 @@ CreateDefaultConfig()
     IniWrite, %DefaultEnableSmoothing%, %ConfigFile%, Advanced, EnableSmoothing
     IniWrite, %DefaultEMAFactor%, %ConfigFile%, Advanced, EMAFactor
     IniWrite, %DefaultConfirmNeeded%, %ConfigFile%, Advanced, ConfirmNeeded
+
+    IniWrite, %DefaultEnsureTopmost%, %ConfigFile%, Advanced, EnsureTopmost
+    IniWrite, %DefaultTopmostReassertMin%, %ConfigFile%, Advanced, TopmostReassertMin
 }
 
 ; ========================= 设置界面（设置窗口） =========================
@@ -252,6 +267,18 @@ ShowSettings:
 
     Gui, Settings: Add, Checkbox, x20 y100 vMouseThrough Checked%MouseThrough%, 鼠标穿透
     GuiControl, Settings:, MouseThrough, %MouseThrough%
+
+    Gui, Settings: Add, Checkbox, x20 y130 vEnsureTopmost gEnsureTopmostChanged, 确保置顶
+    Gui, Settings: Add, Text, x220 y128, 重申周期（分钟）:
+    Gui, Settings: Add, Edit, x340 y124 w60 vTopmostReassertMin +Number, %TopmostReassertMin%
+    Gui, Settings: Add, UpDown, vTopmostReassertMinUD Range1-1440, %TopmostReassertMin%
+
+    GuiControl, Settings:, EnsureTopmost, %EnsureTopmost%
+    if (!EnsureTopmost)
+    {
+        GuiControl, Settings: Disable, TopmostReassertMin
+        GuiControl, Settings: Disable, TopmostReassertMinUD
+    }
     
     ; 界面选项卡
     Gui, Settings: Tab, 界面
@@ -405,6 +432,21 @@ ShowSettings:
     Gui, Settings: Show, w450 h320, 网速监控设置
 Return
 
+; ---------- EnsureTopmost 开关变化回调（设置窗口内） ----------
+EnsureTopmostChanged:
+    Gui, Settings: Submit, NoHide
+    if (EnsureTopmost)
+    {
+        GuiControl, Settings: Enable, TopmostReassertMin
+        GuiControl, Settings: Enable, TopmostReassertMinUD
+    }
+    else
+    {
+        GuiControl, Settings: Disable, TopmostReassertMin
+        GuiControl, Settings: Disable, TopmostReassertMinUD
+    }
+Return
+
 ; ---------- 初始化/更新颜色预览（供设置窗口使用） ----------
 __InitColorPreview:
     Gui, Settings: Submit, NoHide
@@ -533,6 +575,8 @@ SaveSettings:
     Thresh3MB := RegExReplace(Thresh3MB, "[,\s]", "")
     ConfirmNeeded := RegExReplace(ConfirmNeeded, "[,\s]", "")
     EMAFactor := Trim(EMAFactor)
+    EnsureTopmost := EnsureTopmost ? EnsureTopmost : 0
+    TopmostReassertMin := RegExReplace(TopmostReassertMin, "[^\d]", "")
 
     ; 验证数值范围并设置默认值（防止用户输入导致异常）
     if (Interval < 100 || Interval > 5000)
@@ -553,6 +597,8 @@ SaveSettings:
         Thresh3MB := 2
     if (ConfirmNeeded < 1 || ConfirmNeeded > 10)
         ConfirmNeeded := 2
+    if (TopmostReassertMin < 1 || TopmostReassertMin > 60)
+        TopmostReassertMin := 10
 
     ; 约束 EMAFactor 到 [0,1]
     if (EMAFactor = "")
@@ -635,6 +681,9 @@ SaveSettings:
     IniWrite, %EnableSmoothing%, %ConfigFile%, Advanced, EnableSmoothing
     IniWrite, %EMAFactor%, %ConfigFile%, Advanced, EMAFactor
     IniWrite, %ConfirmNeeded%, %ConfigFile%, Advanced, ConfirmNeeded
+
+    IniWrite, %EnsureTopmost%, %ConfigFile%, Advanced, EnsureTopmost
+    IniWrite, %TopmostReassertMin%, %ConfigFile%, Advanced, TopmostReassertMin
     
     ; 根据AutoRestart设置决定是否确认重启
     if (AutoRestart)
@@ -846,6 +895,16 @@ ApplyGuiTransparency()
     }
 }
 
+; ---------- 重申置顶（定时器回调 / 可由 SetTimer 调用） ----------
+ReassertTopmost:
+    ; 通过保存的窗口句柄 hGui 重新设置 AlwaysOnTop，防止被顶掉
+    global hGui
+    if (hGui)
+    {
+        WinSet, AlwaysOnTop, On, ahk_id %hGui%
+    }
+Return
+
 ; ========================= 多显示器支持与定位 =========================
 
 ; ---------- 获取目标工作区（支持“全部”或具体显示器） ----------
@@ -882,7 +941,7 @@ GetTargetWorkArea(ByRef sx, ByRef sy, ByRef sw, ByRef sh)
 ; ---------- 根据配置定位GUI（支持选择显示器/全部虚拟屏幕） ----------
 PositionGui()
 {
-    global GuiWidth, GuiHeight, PositionCorner, OffsetX, OffsetY
+    global GuiWidth, GuiHeight, PositionCorner, OffsetX, OffsetY, hGui
     ; 取目标工作区坐标和宽高
     GetTargetWorkArea(screenX, screenY, screenW, screenH)
 
