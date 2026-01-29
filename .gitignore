@@ -2,5 +2,9 @@ Display Network Speed/config.ini
 Display Network Speed/tmp
 
 QuickWorkbench/Workspace
+QuickWorkbench/程序分析报告.md
+QuickWorkbench/优化计划.md
 
 Windows Optimization for AHK/config.ini
+
+.gitignore

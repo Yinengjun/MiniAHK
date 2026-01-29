@@ -156,16 +156,15 @@ ShowLauncher:
             CurrentTabIndex := TabIndex
         }
         
-        ; 根据是否为当前标签决定背景色
+        ; 标签按钮 - 自定义样式
         if (A_LoopField = CurrentTabName) {
-            Gui, Add, Progress, x%TabX% y%TabY% w%TabWidth% h%TabHeight% Background%TabActiveColor% Disabled
+            ; 活跃标签 - 白色背景
+            Gui, Add, Button, x%TabX% y%TabY% w%TabWidth% h%TabHeight% gSwitchToTab vTabButton%TabIndex% Background%TabActiveColor% +0x8000, %A_LoopField%
             CurrentTabIndex := TabIndex
         } else {
-            Gui, Add, Progress, x%TabX% y%TabY% w%TabWidth% h%TabHeight% Background%TabInactiveColor% Disabled
+            ; 非活跃标签 - 灰色背景
+            Gui, Add, Button, x%TabX% y%TabY% w%TabWidth% h%TabHeight% gSwitchToTab vTabButton%TabIndex% Background%TabInactiveColor% +0x8000, %A_LoopField%
         }
-        
-        ; 标签文字 - 使用居中样式
-        Gui, Add, Text, x%TabX% y%TabY% w%TabWidth% h%TabHeight% +0x200 +0x1 BackgroundTrans c%TextColor% gSwitchToTab%TabIndex% vTabText%TabIndex%, %A_LoopField%
         
         TabButtons[TabIndex] := A_LoopField
         TabNames[A_LoopField] := TabIndex
@@ -174,21 +173,18 @@ ShowLauncher:
     ; "+" 新建标签按钮
     NewTabX := TabStartX + TabIndex * (TabWidth + 2)
     if (NewTabX < 400) {
-        Gui, Add, Progress, x%NewTabX% y6 w30 h28 Background%TabInactiveColor% Disabled
-        Gui, Add, Text, x%NewTabX% y6 w30 h28 +0x200 +0x1 BackgroundTrans c%TextColor% gCreateNewTab vNewTabBtn, +
+        Gui, Add, Button, x%NewTabX% y6 w30 h28 gCreateNewTab vNewTabBtn Background%TabInactiveColor% +0x8000, +
     }
 
     ; 右侧控制按钮区域
     ControlsX := 430
     
     ; 固定按钮 📌
-    Gui, Add, Progress, x%ControlsX% y6 w30 h28 Background%TabInactiveColor% Disabled
-    Gui, Add, Text, x%ControlsX% y6 w30 h28 +0x200 +0x1 BackgroundTrans c%TextColor% gTogglePin vPinBtn, % (IsPinned ? "📍" : "📌")
+    Gui, Add, Button, x%ControlsX% y6 w30 h28 gTogglePin vPinBtn Background%TabInactiveColor% +0x8000, % (IsPinned ? "📍" : "📌")
     
     ; 关闭按钮 ✕
     CloseX := ControlsX + 35
-    Gui, Add, Progress, x%CloseX% y6 w30 h28 BackgroundRed Disabled
-    Gui, Add, Text, x%CloseX% y6 w30 h28 +0x200 +0x1 BackgroundTrans cWhite gCloseWindow vCloseBtn, ✕
+    Gui, Add, Button, x%CloseX% y6 w30 h28 gCloseWindow vCloseBtn BackgroundRed +0x8000, ✕
 
     ; 导航栏分割线
     Gui, Add, Progress, x0 y40 w500 h1 Background%BorderColor% Disabled
@@ -269,29 +265,13 @@ CreateWebShortcut(name, url, shortcutPath) {
 ; ========================
 ; 标签切换事件
 ; ========================
-SwitchToTab1:
-    SwitchTab(1)
-return
-SwitchToTab2:
-    SwitchTab(2)
-return
-SwitchToTab3:
-    SwitchTab(3)
-return
-SwitchToTab4:
-    SwitchTab(4)
-return
-SwitchToTab5:
-    SwitchTab(5)
-return
-SwitchToTab6:
-    SwitchTab(6)
-return
-SwitchToTab7:
-    SwitchTab(7)
-return
-SwitchToTab8:
-    SwitchTab(8)
+SwitchToTab:
+    ; 从控制变量名中提取标签索引
+    RegExMatch(A_GuiControl, "TabButton(\d+)", match)
+    tabIndex := match1
+    if (tabIndex) {
+        SwitchTab(tabIndex)
+    }
 return
 
 ; 标签切换函数
@@ -300,9 +280,27 @@ SwitchTab(tabIndex) {
     if (TabButtons.HasKey(tabIndex)) {
         CurrentTabName := TabButtons[tabIndex]
         CurrentTabIndex := tabIndex
+        ; 加载新标签的文件内容
         LoadFiles(CurrentTabName)
-        ; 这里可以添加标签视觉状态更新，但需要重绘整个界面
-        ; 为简化，我们只更新文件列表
+        ; 更新按钮视觉状态
+        UpdateTabVisuals()
+    }
+}
+
+; 更新标签按钮视觉状态
+UpdateTabVisuals() {
+    global TabButtons, CurrentTabIndex, TabActiveColor, TabInactiveColor
+    
+    ; 更新所有标签按钮的背景色
+    Loop, % TabButtons.MaxIndex() {
+        tabIndex := A_Index
+        if (A_Index = CurrentTabIndex) {
+            ; 活跃标签 - 白色背景
+            GuiControl, +Background%TabActiveColor%, TabButton%tabIndex%
+        } else {
+            ; 非活跃标签 - 灰色背景
+            GuiControl, +Background%TabInactiveColor%, TabButton%tabIndex%
+        }
     }
 }
 

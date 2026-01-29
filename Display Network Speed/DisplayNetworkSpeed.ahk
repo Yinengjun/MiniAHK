@@ -46,6 +46,7 @@ DefaultMouseThrough := true              ; 鼠标穿透（窗口是否允许鼠�
 DefaultDisplayTarget := "主屏幕"         ; 显示器（主屏幕/显示器N/全部）
 DefaultEnsureTopmost := false            ; 是否开启确保置顶的定时重申
 DefaultTopmostReassertMin := 10           ; 重申置顶周期，单位：分钟（默认为 10 分钟）
+DefaultDragPositioning := false           ; 是否启用拖动定位
 
 ; ---------- 读取配置文件 ----------
 LoadConfig()
@@ -75,6 +76,12 @@ global q, item, sSent, sRecv, candidateUp, candidateDown ; 临时变量与候选
 global Display                                   ; 目标显示器文本（主屏幕/显示器N/全部）
 global hGui                                      ; GUI 窗口句柄
 global LimitOffset                               ; 限制偏离量设置
+
+; ---------- 拖动定位相关全局变量 ----------
+global DragPositioning                           ; 是否启用拖动定位
+global DragStartX, DragStartY                    ; 拖动开始时鼠标坐标
+global DragStartGuiX, DragStartGuiY              ; 拖动开始时GUI窗口坐标
+global IsDragging := false                        ; 是否正在拖动
 
 ; ---------- 取色器相关全局 ----------
 global PickerActive := false
@@ -173,6 +180,7 @@ LoadConfig()
 
     IniRead, EnsureTopmost, %ConfigFile%, Advanced, EnsureTopmost, %DefaultEnsureTopmost%
     IniRead, TopmostReassertMin, %ConfigFile%, Advanced, TopmostReassertMin, %DefaultTopmostReassertMin%
+    IniRead, DragPositioning, %ConfigFile%, Position, DragPositioning, %DefaultDragPositioning%
 
     ; 清理数值中的逗号和空格，确保为纯数字，防止后续运算出错
     Interval := RegExReplace(Interval, "[,\s]", "")
@@ -257,6 +265,7 @@ CreateDefaultConfig()
 
     IniWrite, %DefaultEnsureTopmost%, %ConfigFile%, Advanced, EnsureTopmost
     IniWrite, %DefaultTopmostReassertMin%, %ConfigFile%, Advanced, TopmostReassertMin
+    IniWrite, %DefaultDragPositioning%, %ConfigFile%, Position, DragPositioning
 }
 
 ; ========================= 设置界面（设置窗口） =========================
@@ -281,7 +290,7 @@ ShowSettings:
     Gui, Settings: Add, Checkbox, x20 y70 vAutoRestart, 保存后重启不二次确认
     GuiControl, Settings:, AutoRestart, %AutoRestart%
 
-    Gui, Settings: Add, Checkbox, x20 y100 vMouseThrough Checked%MouseThrough%, 鼠标穿透
+    Gui, Settings: Add, Checkbox, x20 y100 vMouseThrough Checked%MouseThrough% gMouseThroughChanged, 鼠标穿透
     GuiControl, Settings:, MouseThrough, %MouseThrough%
 
     Gui, Settings: Add, Checkbox, x20 y130 vEnsureTopmost gEnsureTopmostChanged, 确保置顶
@@ -294,6 +303,17 @@ ShowSettings:
     {
         GuiControl, Settings: Disable, TopmostReassertMin
         GuiControl, Settings: Disable, TopmostReassertMinUD
+    }
+    
+    ; 如果启用了拖动定位，禁用手动偏移输入
+    if (DragPositioning)
+    {
+        GuiControl, Settings: Disable, PositionCorner
+        GuiControl, Settings: Disable, OffsetX
+        GuiControl, Settings: Disable, OffsetXUD
+        GuiControl, Settings: Disable, OffsetY
+        GuiControl, Settings: Disable, OffsetYUD
+        GuiControl, Settings: Disable, LimitOffset
     }
     
     ; 界面选项卡
@@ -392,6 +412,10 @@ ShowSettings:
     Gui, Settings: Add, UpDown, vOffsetYUD Range-200-200, %OffsetY%
     Gui, Settings: Add, Text, x210 y100, (正数向上，负数向下)
     
+    Gui, Settings: Add, Checkbox, x20 y130 vDragPositioning gDragPositioningChanged, 启用拖动定位
+    GuiControl, Settings:, DragPositioning, %DragPositioning%
+    Gui, Settings: Add, Text, x20 y160 w350, (启用后可拖动窗口调整位置，偏移量将自动计算保存)
+    
     ; 网速阈值选项卡
     Gui, Settings: Tab, 网速阈值
     Gui, Settings: Add, Text, x20 y40, 很低速阈值 (KB/s):
@@ -456,6 +480,15 @@ ShowSettings:
     Gui, Settings: Show, w450 h320, 网速监控设置
 Return
 
+; ---------- 鼠标穿透开关变化回调（设置窗口内） ----------
+MouseThroughChanged:
+    Gui, Settings: Submit, NoHide
+    if (MouseThrough && DragPositioning)
+    {
+        MsgBox, 48, 提示, 启用拖动定位时，鼠标穿透功能将被禁用以确保拖动操作正常工作。`n`n保存设置后将自动应用此调整。
+    }
+Return
+
 ; ---------- EnsureTopmost 开关变化回调（设置窗口内） ----------
 EnsureTopmostChanged:
     Gui, Settings: Submit, NoHide
@@ -468,6 +501,38 @@ EnsureTopmostChanged:
     {
         GuiControl, Settings: Disable, TopmostReassertMin
         GuiControl, Settings: Disable, TopmostReassertMinUD
+    }
+Return
+
+; ---------- 拖动定位开关变化回调（设置窗口内） ----------
+DragPositioningChanged:
+    Gui, Settings: Submit, NoHide
+    if (DragPositioning)
+    {
+        ; 启用拖动定位时，禁用手动位置控制
+        GuiControl, Settings: Disable, PositionCorner
+        GuiControl, Settings: Disable, OffsetX
+        GuiControl, Settings: Disable, OffsetXUD
+        GuiControl, Settings: Disable, OffsetY
+        GuiControl, Settings: Disable, OffsetYUD
+        GuiControl, Settings: Disable, LimitOffset
+        
+        ; 如果同时启用了鼠标穿透，提示用户
+        Gui, Settings: Submit, NoHide
+        if (MouseThrough)
+        {
+            MsgBox, 48, 提示, 启用拖动定位时，鼠标穿透功能将被禁用以确保拖动操作正常工作。`n`n保存设置后将自动应用此调整。
+        }
+    }
+    else
+    {
+        ; 禁用拖动定位时，启用手动位置控制
+        GuiControl, Settings: Enable, PositionCorner
+        GuiControl, Settings: Enable, OffsetX
+        GuiControl, Settings: Enable, OffsetXUD
+        GuiControl, Settings: Enable, OffsetY
+        GuiControl, Settings: Enable, OffsetYUD
+        GuiControl, Settings: Enable, LimitOffset
     }
 Return
 
@@ -604,6 +669,11 @@ SaveSettings:
     EnsureTopmost := EnsureTopmost ? EnsureTopmost : 0
     TopmostReassertMin := RegExReplace(TopmostReassertMin, "[^\d]", "")
     LimitOffset := LimitOffset ? 1 : 0
+    DragPositioning := DragPositioning ? DragPositioning : 0
+    
+    ; 如果启用了拖动定位，禁用鼠标穿透
+    if (DragPositioning)
+        MouseThrough := 0
 
     ; 验证数值范围并设置默认值（防止用户输入导致异常）
     if (Interval < 100 || Interval > 5000)
@@ -712,6 +782,7 @@ SaveSettings:
 
     IniWrite, %EnsureTopmost%, %ConfigFile%, Advanced, EnsureTopmost
     IniWrite, %TopmostReassertMin%, %ConfigFile%, Advanced, TopmostReassertMin
+    IniWrite, %DragPositioning%, %ConfigFile%, Position, DragPositioning
     
     ; 根据AutoRestart设置决定是否确认重启
     if (AutoRestart)
@@ -901,10 +972,19 @@ CreateGuiAndShow(hexColor)
     ApplyGuiTransparency()
 
     ; 应用鼠标穿透设置（通过扩展窗口样式 ExStyle）
-    if (MouseThrough)
+    ; 如果启用了拖动定位，禁用鼠标穿透以允许拖动操作
+    if (MouseThrough && !DragPositioning)
         WinSet, ExStyle, +0x20, ahk_id %hGui%  ; WS_EX_TRANSPARENT
     else
         WinSet, ExStyle, -0x20, ahk_id %hGui%
+    
+    ; 如果启用了拖动定位，绑定鼠标事件
+    if (DragPositioning)
+    {
+        OnMessage(0x0201, "OnLButtonDown")  ; WM_LBUTTONDOWN
+        OnMessage(0x0202, "OnLButtonUp")    ; WM_LBUTTONUP
+        OnMessage(0x0200, "OnMouseMove")    ; WM_MOUSEMOVE
+    }
 }
 
 ; ---------- 应用窗口透明策略（两种方案） ----------
@@ -1247,3 +1327,155 @@ Return
 ExitApp:
     ExitApp
 Return
+
+; ========================= 拖动定位功能实现 =========================
+
+; ---------- 鼠标左键按下事件 ----------
+OnLButtonDown(wParam, lParam, msg, hwnd)
+{
+    global hGui, DragPositioning, IsDragging
+    global DragStartX, DragStartY, DragStartGuiX, DragStartGuiY
+    
+    if (!DragPositioning || hwnd != hGui)
+        return
+    
+    ; 记录拖动开始时的鼠标和窗口位置
+    CoordMode, Mouse, Screen
+    MouseGetPos, DragStartX, DragStartY
+    WinGetPos, DragStartGuiX, DragStartGuiY, , , ahk_id %hGui%
+    
+    IsDragging := true
+    
+    ; 设置鼠标捕获，确保即使鼠标移出窗口也能接收到事件
+    DllCall("SetCapture", "Ptr", hGui)
+}
+
+; ---------- 鼠标移动事件 ----------
+OnMouseMove(wParam, lParam, msg, hwnd)
+{
+    global hGui, DragPositioning, IsDragging
+    global DragStartX, DragStartY, DragStartGuiX, DragStartGuiY
+    
+    if (!DragPositioning || !IsDragging || hwnd != hGui)
+        return
+    
+    ; 获取当前鼠标位置
+    CoordMode, Mouse, Screen
+    MouseGetPos, currentX, currentY
+    
+    ; 计算新的窗口位置
+    newX := DragStartGuiX + (currentX - DragStartX)
+    newY := DragStartGuiY + (currentY - DragStartY)
+    
+    ; 移动窗口
+    WinMove, ahk_id %hGui%, , newX, newY
+}
+
+; ---------- 鼠标左键释放事件 ----------
+OnLButtonUp(wParam, lParam, msg, hwnd)
+{
+    global hGui, DragPositioning, IsDragging
+    global DragStartX, DragStartY, DragStartGuiX, DragStartGuiY
+    global PositionCorner, OffsetX, OffsetY, LimitOffset
+    global GuiWidth, GuiHeight
+    
+    if (!DragPositioning || !IsDragging || hwnd != hGui)
+        return
+    
+    IsDragging := false
+    
+    ; 释放鼠标捕获
+    DllCall("ReleaseCapture")
+    
+    ; 获取当前窗口位置
+    WinGetPos, currentGuiX, currentGuiY, , , ahk_id %hGui%
+    
+    ; 计算相对于目标工作区的偏移量
+    GetTargetWorkArea(screenX, screenY, screenW, screenH)
+    
+    ; 根据当前位置推断最接近的角落
+    centerX := currentGuiX + GuiWidth / 2
+    centerY := currentGuiY + GuiHeight / 2
+    screenCenterX := screenX + screenW / 2
+    screenCenterY := screenY + screenH / 2
+    
+    if (centerX >= screenCenterX && centerY >= screenCenterY)
+        PositionCorner := "右下角"
+    else if (centerX >= screenCenterX && centerY < screenCenterY)
+        PositionCorner := "右上角"
+    else if (centerX < screenCenterX && centerY >= screenCenterY)
+        PositionCorner := "左下角"
+    else
+        PositionCorner := "左上角"
+    
+    ; 计算基准位置
+    if (PositionCorner = "右下角")
+    {
+        baseX := screenX + screenW - GuiWidth
+        baseY := screenY + screenH - GuiHeight
+    }
+    else if (PositionCorner = "右上角")
+    {
+        baseX := screenX + screenW - GuiWidth
+        baseY := screenY
+    }
+    else if (PositionCorner = "左下角")
+    {
+        baseX := screenX
+        baseY := screenY + screenH - GuiHeight
+    }
+    else ; 左上角
+    {
+        baseX := screenX
+        baseY := screenY
+    }
+    
+    ; 计算偏移量（需要与PositionGui中的应用逻辑保持一致）
+    if (PositionCorner = "右下角")
+    {
+        OffsetX := baseX - currentGuiX  ; PositionGui中使用 x := baseX - OffsetX
+        OffsetY := baseY - currentGuiY  ; PositionGui中使用 y := baseY - OffsetY
+    }
+    else if (PositionCorner = "右上角")
+    {
+        OffsetX := baseX - currentGuiX  ; PositionGui中使用 x := baseX - OffsetX
+        OffsetY := currentGuiY - baseY  ; PositionGui中使用 y := baseY + OffsetY
+    }
+    else if (PositionCorner = "左下角")
+    {
+        OffsetX := currentGuiX - baseX  ; PositionGui中使用 x := baseX + OffsetX
+        OffsetY := baseY - currentGuiY  ; PositionGui中使用 y := baseY - OffsetY
+    }
+    else ; 左上角
+    {
+        OffsetX := currentGuiX - baseX  ; PositionGui中使用 x := baseX + OffsetX
+        OffsetY := currentGuiY - baseY  ; PositionGui中使用 y := baseY + OffsetY
+    }
+    
+    ; 如果启用了限制偏离量，将偏移量限制在合理范围内
+    if (LimitOffset)
+    {
+        if (OffsetX < -500)
+            OffsetX := -500
+        if (OffsetX > 500)
+            OffsetX := 500
+        if (OffsetY < -200)
+            OffsetY := -200
+        if (OffsetY > 200)
+            OffsetY := 200
+    }
+    
+    ; 保存新的位置配置到文件
+    SavePositionConfig()
+}
+
+; ---------- 保存位置配置 ----------
+SavePositionConfig()
+{
+    global ConfigFile, PositionCorner, OffsetX, OffsetY, LimitOffset
+    
+    IniWrite, %PositionCorner%, %ConfigFile%, Position, Corner
+    IniWrite, %OffsetX%, %ConfigFile%, Position, OffsetX
+    IniWrite, %OffsetY%, %ConfigFile%, Position, OffsetY
+    IniWrite, %LimitOffset%, %ConfigFile%, Position, LimitOffset
+}
