@@ -6,6 +6,8 @@ Menu, Tray, NoStandard          ; 禁用默认托盘菜单，使用自定义项
 
 ; ---------- 托盘菜单（右键菜单项） ----------
 Menu, Tray, Add, 设置, ShowSettings
+Menu, Tray, Add, 关于, ShowAbout
+Menu, Tray, Add 
 Menu, Tray, Add, 重启程序, RestartApp
 Menu, Tray, Add, 退出程序, ExitApp
 
@@ -377,12 +379,12 @@ ShowSettings:
     Gui, Settings: Add, Text, x20 y40, 位置角落:
     Gui, Settings: Add, DropDownList, x100 y36 w100 vPositionCorner, 右下角|右上角|左下角|左上角||
     GuiControl, Settings: Choose, PositionCorner, % (PositionCorner = "右下角") ? 1 : (PositionCorner = "右上角") ? 2 : (PositionCorner = "左下角") ? 3 : 4
-    Gui, Settings: Add, Checkbox, x210 y38 vLimitOffset gLimitOffsetChanged, 限制偏离量
+    Gui, Settings: Add, Checkbox, x210 y38 vLimitOffset, 限制偏离量
     GuiControl, Settings:, LimitOffset, %LimitOffset%
     
     Gui, Settings: Add, Text, x20 y70, 横向偏移:
     Gui, Settings: Add, Edit, x150 y66 w50 vOffsetX, %OffsetX%
-    Gui, Settings: Add, UpDown, vOffsetXUD Range-200-200, %OffsetX%
+    Gui, Settings: Add, UpDown, vOffsetXUD Range-1000-1000, %OffsetX%
     Gui, Settings: Add, Text, x210 y70, (正数向右，负数向左)
     
     Gui, Settings: Add, Text, x20 y100, 纵向偏移:
@@ -449,9 +451,6 @@ ShowSettings:
 
     ; 初始化 OnlyText 与 BgTransparency 的互斥（显示/禁用相应输入框）
     Gosub, OnlyTextChanged
-
-    ; 初始化 限制偏离量 开关对UD的影响
-    Gosub, LimitOffsetChanged
 
     ; 显示设置窗口
     Gui, Settings: Show, w450 h320, 网速监控设置
@@ -576,21 +575,6 @@ OnlyTextChanged:
     {
         GuiControl, Settings: Enable, BgTransparency
         GuiControl, Settings: Enable, BgTransparencyUD
-    }
-Return
-
-; ---------- 限制偏离量 开关变化（仅控制 UpDown 是否启用；读取时由 PositionGui 决定是否矫正） ----------
-LimitOffsetChanged:
-    Gui, Settings: Submit, NoHide
-    if (LimitOffset)
-    {
-        GuiControl, Settings: Enable, OffsetXUD
-        GuiControl, Settings: Enable, OffsetYUD
-    }
-    else
-    {
-        GuiControl, Settings: Disable, OffsetXUD
-        GuiControl, Settings: Disable, OffsetYUD
     }
 Return
 
@@ -1018,7 +1002,7 @@ PositionGui()
         y := baseY + OffsetY  ; 纵向：正数向上偏移
     }
     
-    ; 若启用“限制偏离量”，则将最终位置限制在工作区范围内（不修改配置，仅显示时矫正）
+    ; 若启用“限制偏离量”，则将最终位置限制在工作区范围内（不修改配置，仅显示时矫正，防止超出显示器）
     if (LimitOffset)
     {
         maxX := screenX + screenW - GuiWidth
@@ -1191,6 +1175,65 @@ PickHigh:
 Return
 PickBgColor:
     StartColorPicker("BgColor")
+Return
+
+; ---------- 显示关于窗口 ----------
+ShowAbout:
+    ; 销毁旧的关于窗口（如果存在）
+    Gui, About: Destroy
+
+    ; 创建关于窗口
+    Gui, About: +AlwaysOnTop +ToolWindow +HwndhAbout
+    Gui, About: Margin, 20, 20
+    Gui, About: Font, s11, Segoe UI Variable
+
+    ; 标题
+    Gui, About: Font, s16 Bold
+    Gui, About: Add, Text, x20 y20 w400 Center, Display Network Speed
+
+    ; 简介
+    Gui, About: Font, s10 Normal
+    Gui, About: Add, Text, x20 y50 w400 Center c666666, 网速监控显示工具
+
+    ; 分隔线
+    Gui, About: Add, Progress, x20 y80 w400 h2 BackgroundDDDDDD, 100
+
+    ; 版本信息
+    Gui, About: Font, s10
+    Gui, About: Add, Text, x20 y100, 版本: v1.0.0
+    Gui, About: Add, Text, x20 y125, 基于: AutoHotkey v1.1+
+    Gui, About: Add, Text, x20 y150, 作者：YI
+    Gui, About: Add, Text, x20 y175, 项目地址：
+    
+    ; 可点击 URL
+    Gui, About: Add, Text, x20 y195 w400 c0000FF gOpenProjectURL, https://github.com/YI/DisplayNetworkSpeed
+
+    ; 功能特性标题
+    Gui, About: Font, s11 Bold
+    Gui, About: Add, Text, x20 y230, 主要功能
+
+    ; 功能特性内容
+    Gui, About: Font, s10 Normal
+    Gui, About: Add, Text, x30 y255, • 实时网速显示 (WMI接口)
+    Gui, About: Add, Text, x30 y275, • 智能颜色编码 (4档阈值)
+    Gui, About: Add, Text, x30 y295, • EMA平滑处理
+    Gui, About: Add, Text, x30 y315, • 多显示器支持
+    Gui, About: Add, Text, x30 y335, • 高度自定义配置
+
+    ; 按钮区域
+    Gui, About: Add, Button, x20 y380 w120 h30 gOpenConfigFolder, 打开配置文件夹
+
+    ; 显示关于窗口
+    Gui, About: Show, w440 h430, 关于 Display Network Speed
+Return
+
+OpenProjectURL:
+    Run, https://github.com/YI/DisplayNetworkSpeed
+Return
+
+; 打开配置文件夹
+OpenConfigFolder:
+    Run, explorer "%A_ScriptDir%"
 Return
 
 ; ========================= 控制命令（托盘菜单绑定） =========================
