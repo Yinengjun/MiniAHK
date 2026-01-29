@@ -28,6 +28,7 @@ DefaultArrowWidth := 24                  ; 箭头宽度（像素）
 DefaultPositionCorner := "右下角"         ; 位置角落：右下角、右上角、左下角、左上角
 DefaultOffsetX := 15                     ; 横向偏移（像素）
 DefaultOffsetY := 10                     ; 纵向偏移（像素）
+DefaultLimitOffset := true               ; 限制偏离量设置
 DefaultThresh1 := 50*1024                ; 很低速阈值（50 KB/s）
 DefaultThresh2 := 500*1024               ; 低速阈值（500 KB/s）
 DefaultThresh3 := 2*1024*1024            ; 中速阈值（2 MB/s）
@@ -71,6 +72,17 @@ global recv := 0, sent := 0                       ; 当前网速瞬时值（累�
 global q, item, sSent, sRecv, candidateUp, candidateDown ; 临时变量与候选色
 global Display                                   ; 目标显示器文本（主屏幕/显示器N/全部）
 global hGui                                      ; GUI 窗口句柄
+global LimitOffset                               ; 限制偏离量设置
+
+; ---------- 取色器相关全局 ----------
+global PickerActive := false
+global CurrentPickTarget := ""
+global CurrentPickFmt := ""
+global hPicker := 0
+global PickerLastRGB := "FFFFFF"
+global PickerLastBGR := "FFFFFF"
+; 这些控件变量在函数中创建，必须声明为全局，避免“control's variable must be global or static”错误
+global PickPrev
 
 ; ------------------------- 初始化 WMI 接口（用于获取网速数据） -------------------------
 global wmi, WmiWarned
@@ -142,6 +154,7 @@ LoadConfig()
     IniRead, OffsetX, %ConfigFile%, Position, OffsetX, %DefaultOffsetX%
     IniRead, OffsetY, %ConfigFile%, Position, OffsetY, %DefaultOffsetY%
     IniRead, Display, %ConfigFile%, GUI, Display, %DefaultDisplayTarget%
+    IniRead, LimitOffset, %ConfigFile%, Position, LimitOffset, %DefaultLimitOffset%
     
     IniRead, Thresh1, %ConfigFile%, Thresholds, Thresh1, %DefaultThresh1%
     IniRead, Thresh2, %ConfigFile%, Thresholds, Thresh2, %DefaultThresh2%
@@ -225,6 +238,7 @@ CreateDefaultConfig()
     IniWrite, %DefaultOffsetX%, %ConfigFile%, Position, OffsetX
     IniWrite, %DefaultOffsetY%, %ConfigFile%, Position, OffsetY
     IniWrite, %DefaultDisplayTarget%, %ConfigFile%, GUI, Display
+    IniWrite, %DefaultLimitOffset%, %ConfigFile%, Position, LimitOffset
     
     IniWrite, %DefaultThresh1%, %ConfigFile%, Thresholds, Thresh1
     IniWrite, %DefaultThresh2%, %ConfigFile%, Thresholds, Thresh2
@@ -320,18 +334,20 @@ ShowSettings:
 
     ; 背景色模式 + 自定义色 + 预览
     Gui, Settings: Add, Text, x20 y130, 背景色模式:
-    Gui, Settings: Add, DropDownList, x100 y126 w100 gBgColorModeChange vBgColorMode, 浅色预设|深色预设|自定义||
+    Gui, Settings: Add, DropDownList, x90 y126 w80 gBgColorModeChange vBgColorMode, 浅色预设|深色预设|自定义||
     GuiControl, Settings: Choose, BgColorMode, % (BgColorMode = "浅色预设") ? 1 : (BgColorMode = "深色预设") ? 2 : 3
 
-    Gui, Settings: Add, Text, x220 y130, 自定义背景色:
-    Gui, Settings: Add, Edit, x320 y126 w80 vBgColor gBgColorChanged, %BgColor%
-    Gui, Settings: Add, Progress, x405 y126 w30 h20 vPrevBgColor +Border, 100
+    Gui, Settings: Add, Text, x180 y130, 自定义背景色:
+    Gui, Settings: Add, Edit, x260 y126 w80 vBgColor gBgColorChanged, %BgColor%
+    Gui, Settings: Add, Progress, x350 y126 w30 h20 vPrevBgColor +Border, 100
+    Gui, Settings: Add, Button, x390 y126 w45 h20 vPickBgBtn gPickBgColor, 取色
 
     ; 若不是自定义模式则禁用输入框与预览
     if (BgColorMode != "自定义")
     {
         GuiControl, Settings: Disable, BgColor
         GuiControl, Settings: Disable, PrevBgColor
+        GuiControl, Settings: Disable, PickBgBtn
     }
 
     ; 新增：只显示文字（与透明度互斥）
@@ -361,6 +377,8 @@ ShowSettings:
     Gui, Settings: Add, Text, x20 y40, 位置角落:
     Gui, Settings: Add, DropDownList, x100 y36 w100 vPositionCorner, 右下角|右上角|左下角|左上角||
     GuiControl, Settings: Choose, PositionCorner, % (PositionCorner = "右下角") ? 1 : (PositionCorner = "右上角") ? 2 : (PositionCorner = "左下角") ? 3 : 4
+    Gui, Settings: Add, Checkbox, x210 y38 vLimitOffset gLimitOffsetChanged, 限制偏离量
+    GuiControl, Settings:, LimitOffset, %LimitOffset%
     
     Gui, Settings: Add, Text, x20 y70, 横向偏移:
     Gui, Settings: Add, Edit, x150 y66 w50 vOffsetX, %OffsetX%
@@ -391,18 +409,22 @@ ShowSettings:
     Gui, Settings: Add, Text, x20 y40, 很低速颜色:
     Gui, Settings: Add, Edit, x120 y36 w80 vColorVeryLow gColorEditChanged, %ColorVeryLow%
     Gui, Settings: Add, Progress, x205 y36 w30 h20 vPrevVeryLow +Border, 100
+    Gui, Settings: Add, Button, x240 y34 w45 h22 gPickVeryLow, 取色
     
     Gui, Settings: Add, Text, x20 y70, 低速颜色:
     Gui, Settings: Add, Edit, x120 y66 w80 vColorLow gColorEditChanged, %ColorLow%
     Gui, Settings: Add, Progress, x205 y66 w30 h20 vPrevLow +Border, 100
+    Gui, Settings: Add, Button, x240 y64 w45 h22 gPickLow, 取色
     
     Gui, Settings: Add, Text, x20 y100, 中速颜色:
     Gui, Settings: Add, Edit, x120 y96 w80 vColorMed gColorEditChanged, %ColorMed%
     Gui, Settings: Add, Progress, x205 y96 w30 h20 vPrevMed +Border, 100
+    Gui, Settings: Add, Button, x240 y94 w45 h22 gPickMed, 取色
     
     Gui, Settings: Add, Text, x20 y130, 高速颜色:
     Gui, Settings: Add, Edit, x120 y126 w80 vColorHigh gColorEditChanged, %ColorHigh%
     Gui, Settings: Add, Progress, x205 y126 w30 h20 vPrevHigh +Border, 100
+    Gui, Settings: Add, Button, x240 y124 w45 h22 gPickHigh, 取色
     
     ; 高级选项卡
     Gui, Settings: Tab, 高级
@@ -427,6 +449,9 @@ ShowSettings:
 
     ; 初始化 OnlyText 与 BgTransparency 的互斥（显示/禁用相应输入框）
     Gosub, OnlyTextChanged
+
+    ; 初始化 限制偏离量 开关对UD的影响
+    Gosub, LimitOffsetChanged
 
     ; 显示设置窗口
     Gui, Settings: Show, w450 h320, 网速监控设置
@@ -512,11 +537,13 @@ BgColorModeChange:
     {
         GuiControl, Settings: Enable, BgColor
         GuiControl, Settings: Enable, PrevBgColor
+        GuiControl, Settings: Enable, PickBgBtn
     }
     else
     {
         GuiControl, Settings: Disable, BgColor
         GuiControl, Settings: Disable, PrevBgColor
+        GuiControl, Settings: Disable, PickBgBtn
     }
     UpdateColorPreviews()
 Return
@@ -552,6 +579,21 @@ OnlyTextChanged:
     }
 Return
 
+; ---------- 限制偏离量 开关变化（仅控制 UpDown 是否启用；读取时由 PositionGui 决定是否矫正） ----------
+LimitOffsetChanged:
+    Gui, Settings: Submit, NoHide
+    if (LimitOffset)
+    {
+        GuiControl, Settings: Enable, OffsetXUD
+        GuiControl, Settings: Enable, OffsetYUD
+    }
+    else
+    {
+        GuiControl, Settings: Disable, OffsetXUD
+        GuiControl, Settings: Disable, OffsetYUD
+    }
+Return
+
 ; ---------- 保存设置（将 GUI 中的设置写回配置文件） ----------
 SaveSettings:
     Gui, Settings: Submit
@@ -577,6 +619,7 @@ SaveSettings:
     EMAFactor := Trim(EMAFactor)
     EnsureTopmost := EnsureTopmost ? EnsureTopmost : 0
     TopmostReassertMin := RegExReplace(TopmostReassertMin, "[^\d]", "")
+    LimitOffset := LimitOffset ? 1 : 0
 
     ; 验证数值范围并设置默认值（防止用户输入导致异常）
     if (Interval < 100 || Interval > 5000)
@@ -667,6 +710,7 @@ SaveSettings:
     IniWrite, %OffsetX%, %ConfigFile%, Position, OffsetX
     IniWrite, %OffsetY%, %ConfigFile%, Position, OffsetY
     IniWrite, %Display%, %ConfigFile%, GUI, Display
+    IniWrite, %LimitOffset%, %ConfigFile%, Position, LimitOffset
     
     ; 转换阈值单位并保存（使用可能被调整后的 t1/t2/t3）
     IniWrite, % t1, %ConfigFile%, Thresholds, Thresh1
@@ -941,7 +985,7 @@ GetTargetWorkArea(ByRef sx, ByRef sy, ByRef sw, ByRef sh)
 ; ---------- 根据配置定位GUI（支持选择显示器/全部虚拟屏幕） ----------
 PositionGui()
 {
-    global GuiWidth, GuiHeight, PositionCorner, OffsetX, OffsetY, hGui
+    global GuiWidth, GuiHeight, PositionCorner, OffsetX, OffsetY, hGui, LimitOffset
     ; 取目标工作区坐标和宽高
     GetTargetWorkArea(screenX, screenY, screenW, screenH)
 
@@ -972,6 +1016,21 @@ PositionGui()
         baseY := screenY
         x := baseX + OffsetX  ; 横向：正数向右偏移
         y := baseY + OffsetY  ; 纵向：正数向上偏移
+    }
+    
+    ; 若启用“限制偏离量”，则将最终位置限制在工作区范围内（不修改配置，仅显示时矫正）
+    if (LimitOffset)
+    {
+        maxX := screenX + screenW - GuiWidth
+        maxY := screenY + screenH - GuiHeight
+        if (x < screenX)
+            x := screenX
+        if (y < screenY)
+            y := screenY
+        if (x > maxX)
+            x := maxX
+        if (y > maxY)
+            y := maxY
     }
     
     ; 显示并定位 GUI，不激活窗口（NoActivate）
@@ -1016,6 +1075,123 @@ NormalizeBgColor(s)
     }
     return ""
 }
+
+; ========================= 取色器功能实现 =========================
+; 通用入口：为指定控件启动取色器
+StartColorPicker(targetControl)
+{
+    ; 跨子程序共享的状态/句柄/缓存值
+    global PickerActive, CurrentPickTarget, hPicker, PickerLastRGB
+    global PickPrev
+
+    if (PickerActive)
+        return
+
+    PickerActive := true
+    CurrentPickTarget := targetControl
+    PickerLastRGB := "FFFFFF"  ; 最近一次采样的 RGB（RRGGBB）
+
+    ; 避免在按住左键拖动时意外触发确认：等待当前左键释放后再开始
+    KeyWait, LButton
+
+    ; ---------- 创建取色器小窗 ----------
+    Gui, Picker: Destroy
+    Gui, Picker: +AlwaysOnTop -Caption +ToolWindow +HwndhPicker +E0x20
+    Gui, Picker: Margin, 8,8
+    Gui, Picker: Color, 0xF5F5F5
+    Gui, Picker: Font, s10, Segoe UI
+
+    Gui, Picker: Add, Text, x8 y8 c000000, 左键确定 右键取消
+    Gui, Picker: Add, Progress, x8 y28 w110 h50 vPickPrev +Border, 100
+
+    CoordMode, Mouse, Screen
+    MouseGetPos, mx, my
+    px := mx + 20, py := my + 20
+    Gui, Picker: Show, x%px% y%py% AutoSize NoActivate
+
+    ; ---------- 绑定交互热键 ----------
+    Hotkey, ~LButton Up, __PickerConfirm, On
+    Hotkey, ~RButton Up, __PickerCancel, On
+    Hotkey, Esc, __PickerCancel, On
+    Hotkey, Enter, __PickerConfirm, On
+    Hotkey, Space, __PickerConfirm, On
+
+    ; ---------- 启动采样定时器 ----------
+    SetTimer, __PickerTick, 30
+}
+
+; 取色器定时器：跟随鼠标，实时采样像素颜色并更新 UI
+__PickerTick:
+    global PickerActive, PickerLastRGB
+    if (!PickerActive)
+        Return
+
+    CoordMode, Pixel, Screen
+    CoordMode, Mouse, Screen
+
+    MouseGetPos, mx, my
+    px := mx + 20, py := my + 20
+    Gui, Picker: Show, x%px% y%py% NoActivate
+
+    PixelGetColor, colRGB, mx, my, RGB
+    colRGB := colRGB & 0xFFFFFF
+    hexRGB := Format("{:06X}", colRGB)  ; RRGGBB
+
+    PickerLastRGB := hexRGB
+
+    ; 更新预览块颜色与文本
+    GuiControl, Picker: +c%hexRGB% +Background%hexRGB%, PickPrev
+Return
+
+; 确认取色：写入 0xRRGGBB
+__PickerConfirm:
+    global PickerActive, CurrentPickTarget, PickerLastRGB
+    if (!PickerActive)
+        Return
+
+    val := PickerLastRGB
+    GuiControl, Settings:, %CurrentPickTarget%, %val%
+
+    ; 刷新外部设置界面的颜色预览（若存在）
+    Gosub, __InitColorPreview
+
+    Gosub, __PickerStop
+Return
+
+; 取消取色
+__PickerCancel:
+    Gosub, __PickerStop
+Return
+
+; 停止取色器：收尾
+__PickerStop:
+    global PickerActive, hPicker
+    SetTimer, __PickerTick, Off
+    Hotkey, ~LButton Up, Off
+    Hotkey, ~RButton Up, Off
+    Hotkey, Esc, Off
+    Hotkey, Enter, Off
+    Hotkey, Space, Off
+    Gui, Picker: Destroy
+    PickerActive := false
+Return
+
+; 取色按钮事件（颜色页/界面页）——统一为 0xRRGGBB
+PickVeryLow:
+    StartColorPicker("ColorVeryLow")
+Return
+PickLow:
+    StartColorPicker("ColorLow")
+Return
+PickMed:
+    StartColorPicker("ColorMed")
+Return
+PickHigh:
+    StartColorPicker("ColorHigh")
+Return
+PickBgColor:
+    StartColorPicker("BgColor")
+Return
 
 ; ========================= 控制命令（托盘菜单绑定） =========================
 
