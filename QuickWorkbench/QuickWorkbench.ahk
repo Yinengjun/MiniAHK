@@ -594,6 +594,15 @@ GetShortcutIcon(lnkPath) {
         ; 使用目标文件的图标
         if FileExist(targetPath) {
             SplitPath, targetPath, , , targetExt
+            
+            ; 检查目标是否是图片文件，如果是则使用缩略图
+            if (IsImageFile(targetExt)) {
+                thumbnailIndex := GetImageThumbnail(targetPath)
+                if (thumbnailIndex > 0) {
+                    return thumbnailIndex
+                }
+            }
+            
             return GetFileIcon(targetPath, targetExt)
         }
         
@@ -629,6 +638,14 @@ GetUrlIcon(urlPath) {
 GetFileIcon(filePath, ext) {
     global IL, DefaultIcons
     
+    ; 检查是否是图片文件，如果是则优先使用缩略图
+    if (IsImageFile(ext)) {
+        thumbnailIndex := GetImageThumbnail(filePath)
+        if (thumbnailIndex > 0) {
+            return thumbnailIndex
+        }
+    }
+    
     ; EXE文件尝试提取自身图标
     if (ext = "exe" || ext = "ico") {
         iconIndex := IL_Add(IL, filePath, 0)
@@ -651,6 +668,32 @@ GetFileIcon(filePath, ext) {
     ; 使用预定义的默认图标
     if DefaultIcons.HasKey(ext) {
         return IL_Add(IL, "C:\Windows\System32\shell32.dll", DefaultIcons[ext])
+    }
+    
+    return 0
+}
+
+; 检查是否是图片文件
+IsImageFile(ext) {
+    StringLower, ext, ext
+    imageExts := "jpg,jpeg,png,gif,bmp,tiff,tif,webp,ico"
+    if InStr(imageExts, ext)
+        return true
+    return false
+}
+
+; 获取图片缩略图
+GetImageThumbnail(imagePath) {
+    global IL
+    
+    try {
+        ; 简化方法：直接尝试从图片文件获取图标
+        iconIndex := IL_Add(IL, imagePath, 0)
+        if (iconIndex > 0) {
+            return iconIndex
+        }
+    } catch e {
+        ; 忽略错误
     }
     
     return 0
