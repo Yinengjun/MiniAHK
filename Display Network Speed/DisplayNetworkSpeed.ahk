@@ -1,8 +1,12 @@
 ﻿#NoEnv                          ; 避免使用过时的环境变量，保持脚本行为一致
 #SingleInstance Force           ; 保证脚本单实例运行，防止重复启动
+#Persistent                     ; 保持脚本持续运行，而无需"持续性元素"，防止自动退出
 SetBatchLines, -1               ; 让脚本尽可能快地执行，不做自动延迟
+ListLines, Off                  ; 禁用执行历史记录，提升性能，生产环境推荐
 DetectHiddenWindows, On         ; 允许操作隐藏窗口
 Menu, Tray, NoStandard          ; 禁用默认托盘菜单，使用自定义项
+#KeyHistory, 0                  ; 禁用键盘历史记录，节省内存
+SetControlDelay, -1             ; 移除控件、GUI操作延迟，老旧系统可能需要注释掉
 
 ; ---------- 托盘菜单（右键菜单项） ----------
 Menu, Tray, Add, 设置, ShowSettings
@@ -1273,7 +1277,7 @@ ShowAbout:
 
     ; 简介
     Gui, About: Font, s10 Normal
-    Gui, About: Add, Text, x20 y50 w400 Center c666666, 网速显示
+    Gui, About: Add, Text, x20 y50 w400 Center c666666, 显示网速
 
     ; 分隔线
     Gui, About: Add, Progress, x20 y80 w400 h2 BackgroundDDDDDD, 100
