@@ -1273,7 +1273,7 @@ ShowAbout:
 
     ; 简介
     Gui, About: Font, s10 Normal
-    Gui, About: Add, Text, x20 y50 w400 Center c666666, 网速监控显示工具
+    Gui, About: Add, Text, x20 y50 w400 Center c666666, 网速显示
 
     ; 分隔线
     Gui, About: Add, Progress, x20 y80 w400 h2 BackgroundDDDDDD, 100
@@ -1281,12 +1281,12 @@ ShowAbout:
     ; 版本信息
     Gui, About: Font, s10
     Gui, About: Add, Text, x20 y100, 版本: v1.0.0
-    Gui, About: Add, Text, x20 y125, 基于: AutoHotkey v1.1+
+    Gui, About: Add, Text, x20 y125, 基于: AutoHotkey v1
     Gui, About: Add, Text, x20 y150, 作者：YI
     Gui, About: Add, Text, x20 y175, 项目地址：
     
     ; 可点击 URL
-    Gui, About: Add, Text, x20 y195 w400 c0000FF gOpenProjectURL, https://github.com/YI/DisplayNetworkSpeed
+    Gui, About: Add, Text, x20 y195 w400 c0000FF gOpenProjectURL, https://github.com/Yinengjun/DisplayNetworkSpeed
 
     ; 功能特性标题
     Gui, About: Font, s11 Bold
@@ -1308,7 +1308,7 @@ ShowAbout:
 Return
 
 OpenProjectURL:
-    Run, https://github.com/YI/DisplayNetworkSpeed
+    Run, https://github.com/Yinengjun/DisplayNetworkSpeed
 Return
 
 ; 打开配置文件夹
