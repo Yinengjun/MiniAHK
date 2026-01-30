@@ -12,10 +12,7 @@ HotkeyShow := DefaultHotkey
 
 ; UI 颜色配置
 NavBarColor := 0xF0F0F0      ; 导航栏背景色 (浅灰)
-TabActiveColor := 0xFFFFFF   ; 活跃标签背景色 (白色)
-TabInactiveColor := 0xE0E0E0 ; 非活跃标签背景色 (灰色)
 BorderColor := 0xC0C0C0      ; 边框颜色
-TextColor := 0x333333        ; 文字颜色
 
 ; ========================
 ; 初始化
@@ -45,8 +42,6 @@ return
 global GUI_LOCK := false
 global IsPinned := false
 global CurrentTabName := ""
-global TabButtons := {}
-global TabNames := {}
 global CurrentTabIndex := 1
 global IL
 global IconCache := {}
@@ -135,10 +130,6 @@ ShowLauncher:
     TabWidth := 80
     TabHeight := 28
     
-    ; 重置标签数据
-    TabButtons := {}
-    TabNames := {}
-    
     ; 绘制标签按钮
     TabIndex := 0
     Loop, Parse, Tabs, |
@@ -156,35 +147,32 @@ ShowLauncher:
             CurrentTabIndex := TabIndex
         }
         
-        ; 标签按钮 - 自定义样式
+; 标签按钮
         if (A_LoopField = CurrentTabName) {
-            ; 活跃标签 - 白色背景
-            Gui, Add, Button, x%TabX% y%TabY% w%TabWidth% h%TabHeight% gSwitchToTab vTabButton%TabIndex% Background%TabActiveColor% +0x8000, %A_LoopField%
+            ; 活跃标签
+            Gui, Add, Button, x%TabX% y%TabY% w%TabWidth% h%TabHeight% gSwitchToTab vTabButton%TabIndex% +0x8000, %A_LoopField%
             CurrentTabIndex := TabIndex
         } else {
-            ; 非活跃标签 - 灰色背景
-            Gui, Add, Button, x%TabX% y%TabY% w%TabWidth% h%TabHeight% gSwitchToTab vTabButton%TabIndex% Background%TabInactiveColor% +0x8000, %A_LoopField%
+            ; 非活跃标签
+            Gui, Add, Button, x%TabX% y%TabY% w%TabWidth% h%TabHeight% gSwitchToTab vTabButton%TabIndex% +0x8000, %A_LoopField%
         }
-        
-        TabButtons[TabIndex] := A_LoopField
-        TabNames[A_LoopField] := TabIndex
     }
     
-    ; "+" 新建标签按钮
+; "+" 新建标签按钮
     NewTabX := TabStartX + TabIndex * (TabWidth + 2)
     if (NewTabX < 400) {
-        Gui, Add, Button, x%NewTabX% y6 w30 h28 gCreateNewTab vNewTabBtn Background%TabInactiveColor% +0x8000, +
+        Gui, Add, Button, x%NewTabX% y6 w30 h28 gCreateNewTab vNewTabBtn +0x8000, +
     }
 
     ; 右侧控制按钮区域
     ControlsX := 430
     
-    ; 固定按钮 📌
-    Gui, Add, Button, x%ControlsX% y6 w30 h28 gTogglePin vPinBtn Background%TabInactiveColor% +0x8000, % (IsPinned ? "📍" : "📌")
+; 固定按钮 📌
+    Gui, Add, Button, x%ControlsX% y6 w30 h28 gTogglePin vPinBtn +0x8000, % (IsPinned ? "📍" : "📌")
     
     ; 关闭按钮 ✕
     CloseX := ControlsX + 35
-    Gui, Add, Button, x%CloseX% y6 w30 h28 gCloseWindow vCloseBtn BackgroundRed +0x8000, ✕
+    Gui, Add, Button, x%CloseX% y6 w30 h28 gCloseWindow vCloseBtn +0x8000, ✕
 
     ; 导航栏分割线
     Gui, Add, Progress, x0 y40 w500 h1 Background%BorderColor% Disabled
@@ -276,31 +264,18 @@ return
 
 ; 标签切换函数
 SwitchTab(tabIndex) {
-    global TabButtons, CurrentTabName, CurrentTabIndex
-    if (TabButtons.HasKey(tabIndex)) {
-        CurrentTabName := TabButtons[tabIndex]
+    global CurrentTabName, CurrentTabIndex
+    ; 获取标签名
+    GuiControlGet, tabName,, TabButton%tabIndex%
+    if (tabName) {
+        ; 检查是否是当前活跃标签，避免无意义的重复加载
+        if (tabName = CurrentTabName) {
+            return
+        }
+        CurrentTabName := tabName
         CurrentTabIndex := tabIndex
         ; 加载新标签的文件内容
         LoadFiles(CurrentTabName)
-        ; 更新按钮视觉状态
-        UpdateTabVisuals()
-    }
-}
-
-; 更新标签按钮视觉状态
-UpdateTabVisuals() {
-    global TabButtons, CurrentTabIndex, TabActiveColor, TabInactiveColor
-    
-    ; 更新所有标签按钮的背景色
-    Loop, % TabButtons.MaxIndex() {
-        tabIndex := A_Index
-        if (A_Index = CurrentTabIndex) {
-            ; 活跃标签 - 白色背景
-            GuiControl, +Background%TabActiveColor%, TabButton%tabIndex%
-        } else {
-            ; 非活跃标签 - 灰色背景
-            GuiControl, +Background%TabInactiveColor%, TabButton%tabIndex%
-        }
     }
 }
 
@@ -444,12 +419,14 @@ return
 LoadFiles(subdir) {
     global BaseFolder, IL, IconCache, filesToLoadIcons, currentIconIndex
     
+    ; 先停止异步加载，避免竞态条件
     SetTimer, LoadIcons, Off
     LV_Delete()
     
     if (IL)
         IL_Destroy(IL)
     
+    ; 创建新的 ImageList
     IL := IL_Create(40,1,1)
     LV_SetImageList(IL)
 
@@ -527,8 +504,11 @@ return
 GetIconIndex(filePath) {
     global IL, IconCache, DefaultIcons
     
-    ; 构建缓存键
-    cacheKey := filePath
+    ; 获取文件修改时间
+    FileGetTime, fileTime, %filePath%, M
+    
+    ; 构建缓存键，包含文件修改时间
+    cacheKey := filePath "|" fileTime
     
     ; 如果缓存中存在，直接返回
     if IconCache.HasKey(cacheKey) {
@@ -915,13 +895,3 @@ Min(a, b) {
     return a < b ? a : b
 }
 
-; 解析快捷方式目标（保留原有功能）
-GetShortcutTarget(path) {
-    try {
-        shell := ComObjCreate("WScript.Shell")
-        sc := shell.CreateShortcut(path)
-        return sc.TargetPath
-    } catch e {
-        return ""
-    }
-}
