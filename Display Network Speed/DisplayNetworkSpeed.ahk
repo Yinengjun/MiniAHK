@@ -38,7 +38,7 @@ DefaultColorVeryLow := "CFCFCF"          ; 很低速颜色 灰色（6位16进制
 DefaultColorLow := "A8D5A2"              ; 低速颜色 浅绿
 DefaultColorMed := "7FD3D6"              ; 中速颜色 青色
 DefaultColorHigh := "F2C08C"             ; 高速颜色 橙色
-DefaultEnableSmoothing := true           ; 是否启用平滑处理（EMA）
+DefaultEnableSmoothing := false           ; 是否启用平滑处理（EMA）
 DefaultEMAFactor := 0.35                 ; EMA 指数平滑因子，用于平滑网速显示
 DefaultConfirmNeeded := 2                ; 防抖确认次数：同一颜色连续出现多少次才真正更新
 DefaultAutoRestart := false              ; 保存后自动重启无需二次确认
@@ -399,7 +399,7 @@ ShowSettings:
     Gui, Settings: Add, Text, x20 y40, 位置角落:
     Gui, Settings: Add, DropDownList, x100 y36 w100 vPositionCorner, 右下角|右上角|左下角|左上角||
     GuiControl, Settings: Choose, PositionCorner, % (PositionCorner = "右下角") ? 1 : (PositionCorner = "右上角") ? 2 : (PositionCorner = "左下角") ? 3 : 4
-    Gui, Settings: Add, Checkbox, x210 y38 vLimitOffset, 限制偏离量
+    Gui, Settings: Add, Checkbox, x210 y38 vLimitOffset, 限制偏离量（防止超出屏幕）
     GuiControl, Settings:, LimitOffset, %LimitOffset%
     
     Gui, Settings: Add, Text, x20 y70, 横向偏移:
