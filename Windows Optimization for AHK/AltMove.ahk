@@ -5,6 +5,8 @@
 ; 模块开关变量
 ; ------------------------
 global AltMove
+global AltMoveExcludeProcesses
+global AltMoveExcludeClasses
 global hwnd := 0
 global hook := 0
 global dragging := false
@@ -15,7 +17,7 @@ global ww := 0, wh := 0
 ; ------------------------
 ; Alt + 左键拖动窗口
 ; ------------------------
-#If (AltMove && MasterSwitch)
+#If (AltMove && MasterSwitch && AltMove_IsAllowed())
 !LButton::
 {
     if (dragging)  ; 已经在拖动中，不重复安装钩子
@@ -73,4 +75,45 @@ MouseProc(nCode, wParam, lParam) {
         }
     }
     return DllCall("CallNextHookEx", "ptr", 0, "int", nCode, "ptr", wParam, "ptr", lParam)
+}
+
+AltMove_IsAllowed() {
+    global AltMoveExcludeProcesses, AltMoveExcludeClasses
+
+    if (AltMoveExcludeProcesses = "" && AltMoveExcludeClasses = "")
+        return true
+
+    CoordMode, Mouse, Screen
+    MouseGetPos, , , targetHwnd
+    if (!targetHwnd)
+        return true
+
+    WinGet, processName, ProcessName, ahk_id %targetHwnd%
+    WinGetClass, className, ahk_id %targetHwnd%
+
+    if (AltMove_MatchList(processName, AltMoveExcludeProcesses))
+        return false
+
+    if (AltMove_MatchList(className, AltMoveExcludeClasses))
+        return false
+
+    return true
+}
+
+AltMove_MatchList(value, list) {
+    if (list = "")
+        return false
+
+    StringLower, valueLower, value
+    StringLower, listLower, list
+
+    for index, item in StrSplit(listLower, ",") {
+        token := Trim(item)
+        if (token = "")
+            continue
+        if (valueLower = token)
+            return true
+    }
+
+    return false
 }

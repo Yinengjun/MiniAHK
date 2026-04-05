@@ -19,6 +19,7 @@ global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
 global ModifyWindowBorders
 global AutoStart
 global MasterSwitch  ; 总开关
+global AltMoveExcludeProcesses, AltMoveExcludeClasses
 global SettingsGuiVisible := false
 global CurrentTab := 1
 
@@ -29,6 +30,7 @@ global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck
 global MinimizeWindowCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
 global WindowSizeCheck, PreventHibernationCheck, ReconstructionWindowCheck
 global EnsureNumLockCheck, WindowScalingCheck, ModifyWindowBordersCheck
+global AltMoveExcludeProcessesEdit, AltMoveExcludeClassesEdit
 
 ; ========================
 ; 功能模块配置
@@ -72,6 +74,7 @@ InitConfig() {
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
     global AutoStart
+    global AltMoveExcludeProcesses, AltMoveExcludeClasses
     
     if !FileExist(ConfigFile) {
         IniWrite, 1, %ConfigFile%, Settings, MasterSwitch
@@ -95,6 +98,9 @@ InitConfig() {
 
     IniRead, AutoStart, %ConfigFile%, Settings, AutoStart, 0
     AutoStart := (AutoStart = 1)
+
+    IniRead, AltMoveExcludeProcesses, %ConfigFile%, Settings, AltMoveExcludeProcesses,
+    IniRead, AltMoveExcludeClasses, %ConfigFile%, Settings, AltMoveExcludeClasses,
     
     SetPreventHibernation(PreventHibernation)
 }
@@ -106,6 +112,7 @@ SaveConfig() {
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
     global AutoStart
+    global AltMoveExcludeProcesses, AltMoveExcludeClasses
     
     IniWrite, % MasterSwitch ? 1 : 0, %ConfigFile%, Settings, MasterSwitch
     
@@ -115,6 +122,9 @@ SaveConfig() {
         saveVal := value ? 1 : 0
         IniWrite, %saveVal%, %ConfigFile%, Settings, %varName%
     }
+
+    IniWrite, %AltMoveExcludeProcesses%, %ConfigFile%, Settings, AltMoveExcludeProcesses
+    IniWrite, %AltMoveExcludeClasses%, %ConfigFile%, Settings, AltMoveExcludeClasses
 }
 
 ; ========================
@@ -266,6 +276,13 @@ ShowSettingsWindow() {
     Gui, Settings:Add, GroupBox, x20 y40 w480 h90, 开机自启动
     Gui, Settings:Add, Checkbox, x30 y70 vAutoStart gAutoStartChanged, 开机自启动
     Gui, Settings:Add, Button, x300 y66 w110 h24 gOpenStartupFolder, 打开启动文件夹
+
+    Gui, Settings:Add, GroupBox, x20 y140 w480 h160, Alt+左键避让
+    Gui, Settings:Add, Text, x30 y165 w460 h20, 排除进程名（逗号分隔，如 game.exe, steam.exe）
+    Gui, Settings:Add, Edit, x30 y190 w460 h20 vAltMoveExcludeProcessesEdit gAltMoveExcludeChanged
+    Gui, Settings:Add, Text, x30 y220 w460 h20, 排除窗口类名（逗号分隔，如 UnityWndClass, UnrealWindow）
+    Gui, Settings:Add, Edit, x30 y245 w460 h20 vAltMoveExcludeClassesEdit gAltMoveExcludeChanged
+    Gui, Settings:Add, Button, x30 y270 w140 h24 gAltMovePickWindow, 选定当前窗口
     
     Gui, Settings:Tab, 关于
     Gui, Settings:Add, Text, x20 y40 w480 h30 +Center, Windows Optimization for AHK
@@ -306,6 +323,46 @@ ModifyWindowBordersChange:
     HandleFeatureChange(A_ThisLabel)
 return
 
+AltMoveExcludeChanged:
+    global AltMoveExcludeProcesses, AltMoveExcludeClasses
+    global AltMoveExcludeProcessesEdit, AltMoveExcludeClassesEdit
+    Gui, Settings:Submit, NoHide
+    AltMoveExcludeProcesses := AltMoveExcludeProcessesEdit
+    AltMoveExcludeClasses := AltMoveExcludeClassesEdit
+    SaveConfig()
+return
+
+AltMovePickWindow:
+    global SettingsGuiVisible
+    global AltMoveExcludeProcesses, AltMoveExcludeClasses
+    global AltMoveExcludeProcessesEdit, AltMoveExcludeClassesEdit
+
+    Gui, Settings:Hide
+    SettingsGuiVisible := false
+    ToolTip, 请点击要避让的窗口
+    Sleep, 200
+    KeyWait, LButton, D
+    KeyWait, LButton
+    ToolTip
+
+    CoordMode, Mouse, Screen
+    MouseGetPos, , , targetHwnd
+    if (targetHwnd) {
+        WinGet, processName, ProcessName, ahk_id %targetHwnd%
+        WinGetClass, className, ahk_id %targetHwnd%
+
+        AltMoveExcludeProcesses := AltMove_AppendList(AltMoveExcludeProcesses, processName)
+        AltMoveExcludeClasses := AltMove_AppendList(AltMoveExcludeClasses, className)
+
+        GuiControl, Settings:, AltMoveExcludeProcessesEdit, %AltMoveExcludeProcesses%
+        GuiControl, Settings:, AltMoveExcludeClassesEdit, %AltMoveExcludeClasses%
+        SaveConfig()
+    }
+
+    Gui, Settings:Show
+    SettingsGuiVisible := true
+return
+
 HandleFeatureChange(label) {
     global PastePureText, WindowOnTop, WindowCenter, AltMove
     global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
@@ -343,6 +400,8 @@ UpdateSettingsUI() {
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
     global AutoStart
+    global AltMoveExcludeProcesses, AltMoveExcludeClasses
+    global AltMoveExcludeProcessesEdit, AltMoveExcludeClassesEdit
     
     global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck
     global MinimizeWindowCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
@@ -363,6 +422,40 @@ UpdateSettingsUI() {
     }
 
     UpdateAutoStartUI()
+
+    GuiControl, Settings:, AltMoveExcludeProcessesEdit, %AltMoveExcludeProcesses%
+    GuiControl, Settings:, AltMoveExcludeClassesEdit, %AltMoveExcludeClasses%
+}
+
+AltMove_AppendList(list, value) {
+    if (value = "")
+        return list
+
+    if (AltMove_ValueInList(list, value))
+        return list
+
+    if (list = "")
+        return value
+
+    return list . ", " . value
+}
+
+AltMove_ValueInList(list, value) {
+    if (list = "")
+        return false
+
+    StringLower, listLower, list
+    StringLower, valueLower, value
+
+    for index, item in StrSplit(listLower, ",") {
+        token := Trim(item)
+        if (token = "")
+            continue
+        if (token = valueLower)
+            return true
+    }
+
+    return false
 }
 
 AutoStartChanged:
