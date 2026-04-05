@@ -29,7 +29,7 @@ StartReconstruction:
     screenH := MonitorWorkAreaBottom - MonitorWorkAreaTop
     
     ; 创建全屏遮罩层（阻止鼠标交互，不要 -E0x20）
-    Gui, Overlay:New, +AlwaysOnTop -Caption +ToolWindow +LastFound
+    Gui, Overlay:New, +AlwaysOnTop -Caption +ToolWindow +LastFound -DPIScale
     Gui, Overlay:Color, 000000
     Gui, Overlay:Show, x0 y0 w%screenW% h%screenH%, Overlay
     Gui, Overlay:+LastFound
@@ -37,13 +37,13 @@ StartReconstruction:
     WinSet, Transparent, 100, ahk_id %hwndOverlay%
     
     ; 创建边框 GUI（4条红色边框）
-    Gui, BorderTop:New, +AlwaysOnTop -Caption +ToolWindow +LastFound +E0x20
+    Gui, BorderTop:New, +AlwaysOnTop -Caption +ToolWindow +LastFound +E0x20 -DPIScale
     Gui, BorderTop:Color, FF0000
-    Gui, BorderBottom:New, +AlwaysOnTop -Caption +ToolWindow +LastFound +E0x20
+    Gui, BorderBottom:New, +AlwaysOnTop -Caption +ToolWindow +LastFound +E0x20 -DPIScale
     Gui, BorderBottom:Color, FF0000
-    Gui, BorderLeft:New, +AlwaysOnTop -Caption +ToolWindow +LastFound +E0x20
+    Gui, BorderLeft:New, +AlwaysOnTop -Caption +ToolWindow +LastFound +E0x20 -DPIScale
     Gui, BorderLeft:Color, FF0000
-    Gui, BorderRight:New, +AlwaysOnTop -Caption +ToolWindow +LastFound +E0x20
+    Gui, BorderRight:New, +AlwaysOnTop -Caption +ToolWindow +LastFound +E0x20 -DPIScale
     Gui, BorderRight:Color, FF0000
     
     ; 等待鼠标左键按下
