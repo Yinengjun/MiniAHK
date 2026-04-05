@@ -17,6 +17,7 @@ global PastePureText, WindowOnTop, WindowCenter, AltMove
 global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
 global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
 global ModifyWindowBorders
+global AutoStart
 global MasterSwitch  ; 总开关
 global SettingsGuiVisible := false
 global CurrentTab := 1
@@ -70,6 +71,7 @@ InitConfig() {
     global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
+    global AutoStart
     
     if !FileExist(ConfigFile) {
         IniWrite, 1, %ConfigFile%, Settings, MasterSwitch
@@ -78,6 +80,7 @@ InitConfig() {
             defaultVal := module.default
             IniWrite, %defaultVal%, %ConfigFile%, Settings, %varName%
         }
+        IniWrite, 0, %ConfigFile%, Settings, AutoStart
     }
     
     IniRead, MasterSwitch, %ConfigFile%, Settings, MasterSwitch, 1
@@ -89,6 +92,9 @@ InitConfig() {
         IniRead, value, %ConfigFile%, Settings, %varName%, %defaultVal%
         %varName% := (value = 1)
     }
+
+    IniRead, AutoStart, %ConfigFile%, Settings, AutoStart, 0
+    AutoStart := (AutoStart = 1)
     
     SetPreventHibernation(PreventHibernation)
 }
@@ -99,6 +105,7 @@ SaveConfig() {
     global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
+    global AutoStart
     
     IniWrite, % MasterSwitch ? 1 : 0, %ConfigFile%, Settings, MasterSwitch
     
@@ -256,7 +263,9 @@ ShowSettingsWindow() {
     }
     
     Gui, Settings:Tab, 高级设置
-    Gui, Settings:Add, Text, x20 y40 w480 h200 +Wrap +Center, 高级设置功能`n`n更多配置选项
+    Gui, Settings:Add, GroupBox, x20 y40 w480 h90, 开机自启动
+    Gui, Settings:Add, Checkbox, x30 y70 vAutoStart gAutoStartChanged, 开机自启动
+    Gui, Settings:Add, Button, x300 y66 w110 h24 gOpenStartupFolder, 打开启动文件夹
     
     Gui, Settings:Tab, 关于
     Gui, Settings:Add, Text, x20 y40 w480 h30 +Center, Windows Optimization for AHK
@@ -333,6 +342,7 @@ UpdateSettingsUI() {
     global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
+    global AutoStart
     
     global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck
     global MinimizeWindowCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
@@ -351,7 +361,72 @@ UpdateSettingsUI() {
         GuiControl, Settings:, %checkVarName%, %displayValue%
         GuiControl, Settings:%EnableState%, %checkVarName%
     }
+
+    UpdateAutoStartUI()
 }
+
+AutoStartChanged:
+    global AutoStart
+    oldAutoStart := AutoStart
+    Gui, Settings:Submit, NoHide
+    newAutoStart := AutoStart
+    SaveAutoStartConfig(newAutoStart)
+    ApplyAutoStartSettings(oldAutoStart, newAutoStart)
+    UpdateAutoStartUI()
+return
+
+UpdateAutoStartUI() {
+    global AutoStart
+    GuiControl, Settings:, AutoStart, %AutoStart%
+}
+
+SaveAutoStartConfig(autoStartValue) {
+    global ConfigFile
+    IniWrite, % autoStartValue ? 1 : 0, %ConfigFile%, Settings, AutoStart
+}
+
+ApplyAutoStartSettings(oldAutoStart, newAutoStart) {
+    if (newAutoStart && !oldAutoStart) {
+        if (!CreateAutoStartShortcut())
+            MsgBox, 48, 提示, 创建开机自启动快捷方式失败。
+    } else if (!newAutoStart && oldAutoStart) {
+        DeleteAutoStartShortcut()
+    }
+}
+
+GetAutoStartShortcutName() {
+    name := RegExReplace(A_ScriptName, "\.(ahk|exe)$")
+    return name . ".lnk"
+}
+
+GetAutoStartShortcutPath() {
+    return A_Startup . "\" . GetAutoStartShortcutName()
+}
+
+CreateAutoStartShortcut() {
+    shortcutPath := GetAutoStartShortcutPath()
+    FileCreateShortcut, %A_ScriptFullPath%, %shortcutPath%
+    if ErrorLevel
+        return false
+    return true
+}
+
+DeleteAutoStartShortcut() {
+    shortcutPath := GetAutoStartShortcutPath()
+    FileDelete, %shortcutPath%
+    if ErrorLevel
+        return false
+    return true
+}
+
+CheckAutoStartShortcut() {
+    shortcutPath := GetAutoStartShortcutPath()
+    return FileExist(shortcutPath)
+}
+
+OpenStartupFolder:
+    Run, explorer "%A_Startup%"
+return
 
 ; ========================
 ; 引入模块
