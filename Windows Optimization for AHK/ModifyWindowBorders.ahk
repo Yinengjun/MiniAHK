@@ -52,6 +52,8 @@ return
 ; 开始编辑模式
 MWB_StartEditMode() {
     global
+    CoordMode, Mouse, Screen
+    CoordMode, ToolTip, Screen
     
     ; 获取鼠标位置
     MouseGetPos, MWB_StartX, MWB_StartY, MWB_TargetWindow
@@ -107,7 +109,7 @@ MWB_CheckMouseMovement:
     if (!MWB_EditMode) {
         return
     }
-    
+    CoordMode, Mouse, Screen
     MouseGetPos, MWB_CurrentX, MWB_CurrentY
     
     ; 计算移动距离
@@ -122,33 +124,14 @@ MWB_CheckMouseMovement:
     ; 确定编辑方向（一次只能编辑一边）
     if (MWB_EditDirection = "") {
         if (Abs(MWB_DeltaX) > Abs(MWB_DeltaY)) {
-            if (MWB_DeltaX > 0) {
-                MWB_EditDirection := "Right"
-            } else {
-                MWB_EditDirection := "Left"
-                MWB_PreviewMode := true  ; 左边框启用预览模式
-            }
+            MWB_EditDirection := (MWB_DeltaX > 0) ? "Right" : "Left"
         } else {
-            if (MWB_DeltaY > 0) {
-                MWB_EditDirection := "Down"
-            } else {
-                MWB_EditDirection := "Up"
-                MWB_PreviewMode := true  ; 上边框启用预览模式
-            }
-        }
-        
-        ; 如果启用预览模式，创建预览窗口
-        if (MWB_PreviewMode) {
-            MWB_CreatePreviewWindow()
+            MWB_EditDirection := (MWB_DeltaY > 0) ? "Down" : "Up"
         }
     }
     
-    ; 根据方向调整窗口或预览框
-    if (MWB_PreviewMode) {
-        MWB_UpdatePreview(MWB_DeltaX, MWB_DeltaY)
-    } else {
-        MWB_ResizeWindow(MWB_DeltaX, MWB_DeltaY)
-    }
+    ; 根据方向调整窗口
+    MWB_ResizeWindow(MWB_DeltaX, MWB_DeltaY)
 return
 
 ; 创建预览窗口
@@ -256,42 +239,74 @@ MWB_ResizeWindow(DeltaX, DeltaY) {
     NewY := MWB_WindowY
     NewW := MWB_WindowW
     NewH := MWB_WindowH
+    MinW := 100
+    MinH := 100
+    AnchorRight := MWB_WindowX + MWB_WindowW
+    AnchorBottom := MWB_WindowY + MWB_WindowH
     
     ; 根据编辑方向调整窗口
     if (MWB_EditDirection = "Right") {
         ; 右边向右延长
         NewW := MWB_WindowW + DeltaX
-        if (NewW < 100) {
-            NewW := 100  ; 最小宽度
-        }
+        if (NewW < MinW)
+            NewW := MinW  ; 最小宽度
         ; 检查右边界
         if (NewX + NewW > MWB_ScreenRight) {
             NewW := MWB_ScreenRight - NewX
         }
+    } else if (MWB_EditDirection = "Left") {
+        ; 左边向左延长（锚定右侧）
+        NewX := MWB_WindowX + DeltaX
+        NewW := AnchorRight - NewX
+        if (NewW < MinW) {
+            NewW := MinW
+            NewX := AnchorRight - MinW
+        }
+        if (NewX < MWB_ScreenLeft) {
+            NewX := MWB_ScreenLeft
+            NewW := AnchorRight - NewX
+            if (NewW < MinW) {
+                NewW := MinW
+                NewX := AnchorRight - MinW
+            }
+        }
     } else if (MWB_EditDirection = "Down") {
         ; 下边向下延长
         NewH := MWB_WindowH + DeltaY
-        if (NewH < 100) {
-            NewH := 100  ; 最小高度
-        }
+        if (NewH < MinH)
+            NewH := MinH  ; 最小高度
         ; 检查下边界
         if (NewY + NewH > MWB_ScreenBottom) {
             NewH := MWB_ScreenBottom - NewY
+        }
+    } else if (MWB_EditDirection = "Up") {
+        ; 上边向上延长（锚定下侧）
+        NewY := MWB_WindowY + DeltaY
+        NewH := AnchorBottom - NewY
+        if (NewH < MinH) {
+            NewH := MinH
+            NewY := AnchorBottom - MinH
+        }
+        if (NewY < MWB_ScreenTop) {
+            NewY := MWB_ScreenTop
+            NewH := AnchorBottom - NewY
+            if (NewH < MinH) {
+                NewH := MinH
+                NewY := AnchorBottom - MinH
+            }
         }
     }
     
     ; 最终边界检查
     if (NewX + NewW > MWB_ScreenRight) {
         NewW := MWB_ScreenRight - NewX
-        if (NewW < 100) {
-            NewW := 100
-        }
+        if (NewW < MinW)
+            NewW := MinW
     }
     if (NewY + NewH > MWB_ScreenBottom) {
         NewH := MWB_ScreenBottom - NewY
-        if (NewH < 100) {
-            NewH := 100
-        }
+        if (NewH < MinH)
+            NewH := MinH
     }
     
     ; 应用窗口变化
@@ -306,10 +321,20 @@ MWB_ResizeWindow(DeltaX, DeltaY) {
         if (NewX + NewW >= MWB_ScreenRight) {
             BoundaryWarning := " [已达右边界]"
         }
+    } else if (MWB_EditDirection = "Left") {
+        DirectionText := "← 左边框"
+        if (NewX <= MWB_ScreenLeft) {
+            BoundaryWarning := " [已达左边界]"
+        }
     } else if (MWB_EditDirection = "Down") {
         DirectionText := "下边框 ↓"
         if (NewY + NewH >= MWB_ScreenBottom) {
             BoundaryWarning := " [已达下边界]"
+        }
+    } else if (MWB_EditDirection = "Up") {
+        DirectionText := "↑ 上边框"
+        if (NewY <= MWB_ScreenTop) {
+            BoundaryWarning := " [已达上边界]"
         }
     }
     
@@ -339,14 +364,10 @@ return
 MWB_ExitEditMode() {
     global
     
-    ; 如果是预览模式，应用最终调整
-    if (MWB_PreviewMode && MWB_EditDirection != "") {
-        WinMove, ahk_id %MWB_TargetWindow%, , %MWB_PreviewX%, %MWB_PreviewY%, %MWB_PreviewW%, %MWB_PreviewH%
-        ; 销毁预览窗口
-        if (MWB_PreviewHwnd) {
-            Gui, MWBPreview:Destroy
-            MWB_PreviewHwnd := 0
-        }
+    ; 销毁预览窗口（如果存在）
+    if (MWB_PreviewHwnd) {
+        Gui, MWBPreview:Destroy
+        MWB_PreviewHwnd := 0
     }
     
     MWB_EditMode := false
