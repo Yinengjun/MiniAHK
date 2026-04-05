@@ -60,19 +60,27 @@ ShowPresetMenu() {
     Menu, WSMenu, Add, 参考窗口设置预设, WS_MenuHandler
 
     CoordMode, Mouse, Screen
+    CoordMode, Menu, Screen
     MouseGetPos, mx, my
 
-    ; 第一次显示到角落
-    Menu, WSMenu, Show, 0, 0
-    WinGetPos, wx, wy, ww, wh, ahk_class #32768  ; #32768 是菜单窗口类
-
-    ; 关闭菜单
-    Send, {Escape}
-
-    ; 再次显示到居中位置
-    x := mx - ww//2
-    y := my - wh//2
-    Menu, WSMenu, Show, %x%, %y%
+    ; 先在鼠标位置显示，再移动到居中，避免二次弹出
+    Menu, WSMenu, Show, %mx%, %my%
+    WinWait, ahk_class #32768,, 0.2
+    hMenu := WinExist("ahk_class #32768")
+    if (hMenu) {
+        WinGetPos, wx, wy, ww, wh, ahk_id %hMenu%  ; #32768 是菜单窗口类
+        x := mx - ww//2
+        y := my - wh//2
+        if (x < 0)
+            x := 0
+        if (y < 0)
+            y := 0
+        if (x + ww > A_ScreenWidth)
+            x := A_ScreenWidth - ww
+        if (y + wh > A_ScreenHeight)
+            y := A_ScreenHeight - wh
+        WinMove, ahk_id %hMenu%,, x, y
+    }
 }
 
 ; 菜单处理
