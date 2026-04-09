@@ -14,7 +14,7 @@ global MWB_Sensitivity := 10                   ; ModifyWindowBorders.ahk 所需�
 ; 全局变量声明
 ; ========================
 global PastePureText, WindowOnTop, WindowCenter, AltMove
-global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
+global MinimizeWindow, WindowToTray, BorderlessWindow, SwitchProgramWindows, WindowSize
 global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
 global ModifyWindowBorders
 global AutoStart
@@ -22,12 +22,17 @@ global MasterSwitch  ; 总开关
 global AltMoveExcludeProcesses, AltMoveExcludeClasses
 global SettingsGuiVisible := false
 global CurrentTab := 1
+global g_IsExiting := false
+global WindowToTrayMenuTitle := "已隐藏窗口"
+global WindowToTrayMenuEmptyLabel := "（无）"
+global WindowToTrayMenuRestoreAllLabel := "恢复全部"
+global WindowToTrayUntitledLabel := "无标题"
 
 ; GUI 控件变量（必须声明为全局）
 global TabControl
 global MasterSwitchCheck
 global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck
-global MinimizeWindowCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
+global MinimizeWindowCheck, WindowToTrayCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
 global WindowSizeCheck, PreventHibernationCheck, ReconstructionWindowCheck
 global EnsureNumLockCheck, WindowScalingCheck, ModifyWindowBordersCheck
 global AltMoveExcludeProcessesEdit, AltMoveExcludeClassesEdit
@@ -46,6 +51,7 @@ InitFeatureModules() {
     FeatureModules.Push({var: "WindowCenter",         name: "窗口居中",             hotkey: "Alt+C",             default: 1, script: "WindowCenter.ahk"})
     FeatureModules.Push({var: "AltMove",              name: "移动窗口",             hotkey: "Alt+左键",          default: 1, script: "AltMove.ahk"})
     FeatureModules.Push({var: "MinimizeWindow",       name: "最小化窗口",           hotkey: "Alt+A/M",           default: 1, script: "MinimizeWindow.ahk"})
+    FeatureModules.Push({var: "WindowToTray",         name: "窗口收入托盘",         hotkey: "Alt+X",             default: 1, script: "WindowToTray.ahk"})
     FeatureModules.Push({var: "EnsureNumLock",        name: "确保启用Num Lock",     hotkey: "",                  default: 1, script: ""})
     FeatureModules.Push({var: "BorderlessWindow",     name: "无边框化窗口",         hotkey: "Alt+B",             default: 1, script: "BorderlessWindow.ahk"})
     FeatureModules.Push({var: "SwitchProgramWindows", name: "切换程序窗口",         hotkey: "Ctrl+Alt+滚轮",     default: 1, script: "SwitchProgramWindows.ahk"})
@@ -62,7 +68,9 @@ InitFeatureModules() {
 InitFeatureModules()
 InitConfig()
 EnsureNumLock_Init()
+WindowToTray_Init()
 CreateTrayMenu()
+OnExit, ScriptOnExit
 
 ; ========================
 ; 配置操作
@@ -70,7 +78,7 @@ CreateTrayMenu()
 InitConfig() {
     global ConfigFile, FeatureModules, MasterSwitch
     global PastePureText, WindowOnTop, WindowCenter, AltMove
-    global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
+    global MinimizeWindow, WindowToTray, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
     global AutoStart
@@ -108,7 +116,7 @@ InitConfig() {
 SaveConfig() {
     global ConfigFile, FeatureModules, MasterSwitch
     global PastePureText, WindowOnTop, WindowCenter, AltMove
-    global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
+    global MinimizeWindow, WindowToTray, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
     global AutoStart
@@ -131,7 +139,7 @@ SaveConfig() {
 ; 托盘菜单
 ; ========================
 CreateTrayMenu() {
-    global FeatureModules
+    global FeatureModules, WindowToTrayMenuTitle
     
     Menu, Tray, NoStandard
     Menu, Tray, Add, 设置, ShowSettingsWindow
@@ -145,7 +153,11 @@ CreateTrayMenu() {
             menuText .= " (" . module.hotkey . ")"
         Menu, Tray, Add, %menuText%, ToggleFeature
     }
+
+    WindowToTray_RebuildMenu()
     
+    Menu, Tray, Add
+    Menu, Tray, Add, %WindowToTrayMenuTitle%, :WindowToTrayMenu
     Menu, Tray, Add
     Menu, Tray, Add, 重启程序, RestartScript
     Menu, Tray, Add, 退出, ExitScript
@@ -160,7 +172,7 @@ return
 ToggleFeatureByMenu(menuItem) {
     global FeatureModules
     global PastePureText, WindowOnTop, WindowCenter, AltMove
-    global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
+    global MinimizeWindow, WindowToTray, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
     
@@ -195,7 +207,7 @@ return
 UpdateMenu() {
     global FeatureModules, MasterSwitch
     global PastePureText, WindowOnTop, WindowCenter, AltMove
-    global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
+    global MinimizeWindow, WindowToTray, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
     
@@ -312,6 +324,7 @@ WindowOnTopChange:
 WindowCenterChange:
 AltMoveChange:
 MinimizeWindowChange:
+WindowToTrayChange:
 EnsureNumLockChange:
 BorderlessWindowChange:
 SwitchProgramWindowsChange:
@@ -365,12 +378,12 @@ return
 
 HandleFeatureChange(label) {
     global PastePureText, WindowOnTop, WindowCenter, AltMove
-    global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
+    global MinimizeWindow, WindowToTray, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
 
     global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck
-    global MinimizeWindowCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
+    global MinimizeWindowCheck, WindowToTrayCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
     global WindowSizeCheck, PreventHibernationCheck, ReconstructionWindowCheck
     global EnsureNumLockCheck, WindowScalingCheck, ModifyWindowBordersCheck
     
@@ -396,7 +409,7 @@ return
 UpdateSettingsUI() {
     global MasterSwitch, FeatureModules, MasterSwitchCheck
     global PastePureText, WindowOnTop, WindowCenter, AltMove
-    global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
+    global MinimizeWindow, WindowToTray, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
     global AutoStart
@@ -404,7 +417,7 @@ UpdateSettingsUI() {
     global AltMoveExcludeProcessesEdit, AltMoveExcludeClassesEdit
     
     global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck
-    global MinimizeWindowCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
+    global MinimizeWindowCheck, WindowToTrayCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
     global WindowSizeCheck, PreventHibernationCheck, ReconstructionWindowCheck
     global EnsureNumLockCheck, WindowScalingCheck, ModifyWindowBordersCheck
     
@@ -529,6 +542,7 @@ return
 #Include %A_ScriptDir%\WindowCenter.ahk
 #Include %A_ScriptDir%\AltMove.ahk
 #Include %A_ScriptDir%\MinimizeWindow.ahk
+#Include %A_ScriptDir%\WindowToTray.ahk
 #Include %A_ScriptDir%\BorderlessWindow.ahk
 #Include %A_ScriptDir%\SwitchProgramWindows.ahk
 #Include %A_ScriptDir%\WindowSize.ahk
@@ -559,9 +573,32 @@ EnsureNumLock_Check() {
 ; 程序控制
 ; ========================
 RestartScript:
+    SetTimer, DoRestart, -1
+return
+
+DoRestart:
+    g_IsExiting := true
+    WindowToTray_RestoreAllWindows(false)
     Reload
 return
 
 ExitScript:
+    SetTimer, DoExit, -1
+return
+
+DoExit:
+    g_IsExiting := true
+    WindowToTray_RestoreAllWindows(false)
+    ExitApp
+return
+
+ScriptOnExit:
+    if (g_IsExiting) {
+        ExitApp
+        return
+    }
+
+    g_IsExiting := true
+    WindowToTray_RestoreAllWindows(false)
     ExitApp
 return

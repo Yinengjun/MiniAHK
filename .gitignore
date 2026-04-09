@@ -9,3 +9,5 @@ Windows Optimization for AHK/config.ini
 
 .gitignore
 我的随记.md
+
+*.exe
