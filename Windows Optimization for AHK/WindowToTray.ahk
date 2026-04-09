@@ -9,7 +9,15 @@ WindowToTray_Init() {
     if (!IsObject(WindowToTrayItems))
         WindowToTrayItems := []
     WindowToTray_RebuildMenu()
+    OnMessage(0x404, "WindowToTray_TrayClick")
 }
+
+; Ctrl+Shift+X -> 在鼠标位置弹出已隐藏窗口菜单
+^+x::
+if (!WindowToTray || !MasterSwitch)
+    return
+Menu, WindowToTrayMenu, Show
+return
 
 ; Alt + X -> 将当前活动窗口放到托盘
 !x::
@@ -186,4 +194,15 @@ WindowToTray_GetUntitledLabel() {
     if (WindowToTrayUntitledLabel = "")
         return "Untitled"
     return WindowToTrayUntitledLabel
+}
+
+; 托盘图标左键单击 -> 弹出已隐藏窗口菜单
+WindowToTray_TrayClick(wParam, lParam) {
+    global WindowToTray, MasterSwitch
+    if (lParam = 0x202) {  ; WM_LBUTTONUP
+        if (WindowToTray && MasterSwitch) {
+            Menu, WindowToTrayMenu, Show
+            return 0
+        }
+    }
 }

@@ -51,7 +51,7 @@ InitFeatureModules() {
     FeatureModules.Push({var: "WindowCenter",         name: "窗口居中",             hotkey: "Alt+C",             default: 1, script: "WindowCenter.ahk"})
     FeatureModules.Push({var: "AltMove",              name: "移动窗口",             hotkey: "Alt+左键",          default: 1, script: "AltMove.ahk"})
     FeatureModules.Push({var: "MinimizeWindow",       name: "最小化窗口",           hotkey: "Alt+A/M",           default: 1, script: "MinimizeWindow.ahk"})
-    FeatureModules.Push({var: "WindowToTray",         name: "窗口收入托盘",         hotkey: "Alt+X",             default: 1, script: "WindowToTray.ahk"})
+    FeatureModules.Push({var: "WindowToTray",         name: "窗口收入托盘",         hotkey: "Alt+X / Ctrl+Shift+X", default: 1, script: "WindowToTray.ahk"})
     FeatureModules.Push({var: "EnsureNumLock",        name: "确保启用Num Lock",     hotkey: "",                  default: 1, script: ""})
     FeatureModules.Push({var: "BorderlessWindow",     name: "无边框化窗口",         hotkey: "Alt+B",             default: 1, script: "BorderlessWindow.ahk"})
     FeatureModules.Push({var: "SwitchProgramWindows", name: "切换程序窗口",         hotkey: "Ctrl+Alt+滚轮",     default: 1, script: "SwitchProgramWindows.ahk"})
@@ -140,29 +140,39 @@ SaveConfig() {
 ; ========================
 CreateTrayMenu() {
     global FeatureModules, WindowToTrayMenuTitle
-    
+    global MasterSwitch, WindowToTray
+    global PastePureText, WindowOnTop, WindowCenter, AltMove
+    global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
+    global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
+    global ModifyWindowBorders
+
+    Menu, Tray, DeleteAll
     Menu, Tray, NoStandard
     Menu, Tray, Add, 设置, ShowSettingsWindow
     Menu, Tray, Add
     Menu, Tray, Add, 总开关, ToggleMasterSwitch
+    Menu, Tray, % MasterSwitch ? "Check" : "UnCheck", 总开关
     Menu, Tray, Add
-    
+
     for index, module in FeatureModules {
         menuText := module.name
         if (module.hotkey != "")
             menuText .= " (" . module.hotkey . ")"
         Menu, Tray, Add, %menuText%, ToggleFeature
+        varName := module.var
+        value := %varName%
+        Menu, Tray, % (MasterSwitch && value) ? "Check" : "UnCheck", %menuText%
     }
 
-    WindowToTray_RebuildMenu()
-    
-    Menu, Tray, Add
-    Menu, Tray, Add, %WindowToTrayMenuTitle%, :WindowToTrayMenu
+    if (MasterSwitch && WindowToTray) {
+        WindowToTray_RebuildMenu()
+        Menu, Tray, Add
+        Menu, Tray, Add, %WindowToTrayMenuTitle%, :WindowToTrayMenu
+    }
+
     Menu, Tray, Add
     Menu, Tray, Add, 重启程序, RestartScript
     Menu, Tray, Add, 退出, ExitScript
-    
-    UpdateMenu()
 }
 
 ToggleFeature:
@@ -205,31 +215,20 @@ return
 ; 更新菜单
 ; ========================
 UpdateMenu() {
-    global FeatureModules, MasterSwitch
-    global PastePureText, WindowOnTop, WindowCenter, AltMove
-    global MinimizeWindow, WindowToTray, BorderlessWindow, SwitchProgramWindows, WindowSize
-    global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
-    global ModifyWindowBorders
-    
-    Menu, Tray, % MasterSwitch ? "Check" : "UnCheck", 总开关
-    
-    for index, module in FeatureModules {
-        menuText := module.name
-        if (module.hotkey != "")
-            menuText .= " (" . module.hotkey . ")"
-        
-        varName := module.var
-        value := %varName%
-        Menu, Tray, % (MasterSwitch && value) ? "Check" : "UnCheck", %menuText%
-    }
-    
+    global MasterSwitch, WindowToTray, PreventHibernation
+
+    ; 关闭WindowToTray时恢复所有隐藏窗口
+    if (!MasterSwitch || !WindowToTray)
+        WindowToTray_RestoreAllWindows(true)
+
     if (!MasterSwitch && PreventHibernation) {
         PreventHibernation := false
         SetPreventHibernation(false)
     }
-    
+
+    CreateTrayMenu()
     SaveConfig()
-    
+
     if (SettingsGuiVisible)
         UpdateSettingsUI()
 }
