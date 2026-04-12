@@ -13,7 +13,7 @@ global MWB_Sensitivity := 10                   ; ModifyWindowBorders.ahk 所需�
 ; ========================
 ; 全局变量声明
 ; ========================
-global PastePureText, WindowOnTop, WindowCenter, AltMove
+global PastePureText, WindowOnTop, WindowCenter, AltMove, PeekDesktop
 global MinimizeWindow, WindowToTray, BorderlessWindow, SwitchProgramWindows, WindowSize
 global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
 global ModifyWindowBorders
@@ -31,7 +31,7 @@ global WindowToTrayUntitledLabel := "无标题"
 ; GUI 控件变量（必须声明为全局）
 global TabControl
 global MasterSwitchCheck
-global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck
+global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck, PeekDesktopCheck
 global MinimizeWindowCheck, WindowToTrayCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
 global WindowSizeCheck, PreventHibernationCheck, ReconstructionWindowCheck
 global EnsureNumLockCheck, WindowScalingCheck, ModifyWindowBordersCheck
@@ -50,6 +50,7 @@ InitFeatureModules() {
     FeatureModules.Push({var: "WindowOnTop",          name: "窗口置顶",             hotkey: "Ctrl+Shift+E",      default: 1, script: "WindowOnTop.ahk"})
     FeatureModules.Push({var: "WindowCenter",         name: "窗口居中",             hotkey: "Alt+C",             default: 1, script: "WindowCenter.ahk"})
     FeatureModules.Push({var: "AltMove",              name: "移动窗口",             hotkey: "Alt+左键",          default: 1, script: "AltMove.ahk"})
+    FeatureModules.Push({var: "PeekDesktop",          name: "临时访问桌面",         hotkey: "Alt+D",            default: 1, script: "PeekDesktop.ahk"})
     FeatureModules.Push({var: "MinimizeWindow",       name: "最小化窗口",           hotkey: "Alt+A/M",           default: 1, script: "MinimizeWindow.ahk"})
     FeatureModules.Push({var: "WindowToTray",         name: "窗口收入托盘",         hotkey: "Alt+X / Ctrl+Shift+X", default: 1, script: "WindowToTray.ahk"})
     FeatureModules.Push({var: "EnsureNumLock",        name: "确保启用Num Lock",     hotkey: "",                  default: 1, script: ""})
@@ -77,7 +78,7 @@ OnExit, ScriptOnExit
 ; ========================
 InitConfig() {
     global ConfigFile, FeatureModules, MasterSwitch
-    global PastePureText, WindowOnTop, WindowCenter, AltMove
+    global PastePureText, WindowOnTop, WindowCenter, AltMove, PeekDesktop
     global MinimizeWindow, WindowToTray, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
@@ -115,7 +116,7 @@ InitConfig() {
 
 SaveConfig() {
     global ConfigFile, FeatureModules, MasterSwitch
-    global PastePureText, WindowOnTop, WindowCenter, AltMove
+    global PastePureText, WindowOnTop, WindowCenter, AltMove, PeekDesktop
     global MinimizeWindow, WindowToTray, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
@@ -141,7 +142,7 @@ SaveConfig() {
 CreateTrayMenu() {
     global FeatureModules, WindowToTrayMenuTitle
     global MasterSwitch, WindowToTray
-    global PastePureText, WindowOnTop, WindowCenter, AltMove
+    global PastePureText, WindowOnTop, WindowCenter, AltMove, PeekDesktop
     global MinimizeWindow, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
@@ -181,7 +182,7 @@ return
 
 ToggleFeatureByMenu(menuItem) {
     global FeatureModules
-    global PastePureText, WindowOnTop, WindowCenter, AltMove
+    global PastePureText, WindowOnTop, WindowCenter, AltMove, PeekDesktop
     global MinimizeWindow, WindowToTray, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
@@ -215,11 +216,14 @@ return
 ; 更新菜单
 ; ========================
 UpdateMenu() {
-    global MasterSwitch, WindowToTray, PreventHibernation
+    global MasterSwitch, WindowToTray, PreventHibernation, PeekDesktop
 
     ; 关闭WindowToTray时恢复所有隐藏窗口
     if (!MasterSwitch || !WindowToTray)
         WindowToTray_RestoreAllWindows(true)
+
+    if (!MasterSwitch || !PeekDesktop)
+        PeekDesktop_Cleanup()
 
     if (!MasterSwitch && PreventHibernation) {
         PreventHibernation := false
@@ -322,6 +326,7 @@ PastePureTextChange:
 WindowOnTopChange:
 WindowCenterChange:
 AltMoveChange:
+PeekDesktopChange:
 MinimizeWindowChange:
 WindowToTrayChange:
 EnsureNumLockChange:
@@ -376,12 +381,12 @@ AltMovePickWindow:
 return
 
 HandleFeatureChange(label) {
-    global PastePureText, WindowOnTop, WindowCenter, AltMove
+    global PastePureText, WindowOnTop, WindowCenter, AltMove, PeekDesktop
     global MinimizeWindow, WindowToTray, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
 
-    global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck
+    global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck, PeekDesktopCheck
     global MinimizeWindowCheck, WindowToTrayCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
     global WindowSizeCheck, PreventHibernationCheck, ReconstructionWindowCheck
     global EnsureNumLockCheck, WindowScalingCheck, ModifyWindowBordersCheck
@@ -407,7 +412,7 @@ return
 
 UpdateSettingsUI() {
     global MasterSwitch, FeatureModules, MasterSwitchCheck
-    global PastePureText, WindowOnTop, WindowCenter, AltMove
+    global PastePureText, WindowOnTop, WindowCenter, AltMove, PeekDesktop
     global MinimizeWindow, WindowToTray, BorderlessWindow, SwitchProgramWindows, WindowSize
     global PreventHibernation, ReconstructionWindow, EnsureNumLock, WindowScaling
     global ModifyWindowBorders
@@ -415,7 +420,7 @@ UpdateSettingsUI() {
     global AltMoveExcludeProcesses, AltMoveExcludeClasses
     global AltMoveExcludeProcessesEdit, AltMoveExcludeClassesEdit
     
-    global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck
+    global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck, PeekDesktopCheck
     global MinimizeWindowCheck, WindowToTrayCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
     global WindowSizeCheck, PreventHibernationCheck, ReconstructionWindowCheck
     global EnsureNumLockCheck, WindowScalingCheck, ModifyWindowBordersCheck
@@ -540,6 +545,7 @@ return
 #Include %A_ScriptDir%\WindowOnTop.ahk
 #Include %A_ScriptDir%\WindowCenter.ahk
 #Include %A_ScriptDir%\AltMove.ahk
+#Include %A_ScriptDir%\PeekDesktop.ahk
 #Include %A_ScriptDir%\MinimizeWindow.ahk
 #Include %A_ScriptDir%\WindowToTray.ahk
 #Include %A_ScriptDir%\BorderlessWindow.ahk
@@ -577,6 +583,7 @@ return
 
 DoRestart:
     g_IsExiting := true
+    PeekDesktop_Cleanup()
     WindowToTray_RestoreAllWindows(false)
     Reload
 return
@@ -587,6 +594,7 @@ return
 
 DoExit:
     g_IsExiting := true
+    PeekDesktop_Cleanup()
     WindowToTray_RestoreAllWindows(false)
     ExitApp
 return
@@ -598,6 +606,7 @@ ScriptOnExit:
     }
 
     g_IsExiting := true
+    PeekDesktop_Cleanup()
     WindowToTray_RestoreAllWindows(false)
     ExitApp
 return
