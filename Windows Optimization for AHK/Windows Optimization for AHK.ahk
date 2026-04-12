@@ -20,6 +20,7 @@ global ModifyWindowBorders
 global AutoStart
 global MasterSwitch  ; 总开关
 global AltMoveExcludeProcesses, AltMoveExcludeClasses
+global AltXExcludeProcesses, AltXExcludeClasses
 global SettingsGuiVisible := false
 global CurrentTab := 1
 global g_IsExiting := false
@@ -36,6 +37,7 @@ global MinimizeWindowCheck, WindowToTrayCheck, BorderlessWindowCheck, SwitchProg
 global WindowSizeCheck, PreventHibernationCheck, ReconstructionWindowCheck
 global EnsureNumLockCheck, WindowScalingCheck, ModifyWindowBordersCheck
 global AltMoveExcludeProcessesEdit, AltMoveExcludeClassesEdit
+global AltXExcludeProcessesEdit, AltXExcludeClassesEdit
 
 ; ========================
 ; 功能模块配置
@@ -84,6 +86,7 @@ InitConfig() {
     global ModifyWindowBorders
     global AutoStart
     global AltMoveExcludeProcesses, AltMoveExcludeClasses
+    global AltXExcludeProcesses, AltXExcludeClasses
     
     if !FileExist(ConfigFile) {
         IniWrite, 1, %ConfigFile%, Settings, MasterSwitch
@@ -110,6 +113,8 @@ InitConfig() {
 
     IniRead, AltMoveExcludeProcesses, %ConfigFile%, Settings, AltMoveExcludeProcesses,
     IniRead, AltMoveExcludeClasses, %ConfigFile%, Settings, AltMoveExcludeClasses,
+    IniRead, AltXExcludeProcesses, %ConfigFile%, Settings, AltXExcludeProcesses,
+    IniRead, AltXExcludeClasses, %ConfigFile%, Settings, AltXExcludeClasses,
     
     SetPreventHibernation(PreventHibernation)
 }
@@ -122,6 +127,7 @@ SaveConfig() {
     global ModifyWindowBorders
     global AutoStart
     global AltMoveExcludeProcesses, AltMoveExcludeClasses
+    global AltXExcludeProcesses, AltXExcludeClasses
     
     IniWrite, % MasterSwitch ? 1 : 0, %ConfigFile%, Settings, MasterSwitch
     
@@ -134,6 +140,8 @@ SaveConfig() {
 
     IniWrite, %AltMoveExcludeProcesses%, %ConfigFile%, Settings, AltMoveExcludeProcesses
     IniWrite, %AltMoveExcludeClasses%, %ConfigFile%, Settings, AltMoveExcludeClasses
+    IniWrite, %AltXExcludeProcesses%, %ConfigFile%, Settings, AltXExcludeProcesses
+    IniWrite, %AltXExcludeClasses%, %ConfigFile%, Settings, AltXExcludeClasses
 }
 
 ; ========================
@@ -257,7 +265,7 @@ ShowSettingsWindow() {
     Gui, Settings:New, +Resize, 程序设置
     Gui, Settings:Font, s10
     
-    Gui, Settings:Add, Tab3, x10 y10 w500 h350 vTabControl gTabChange, 基本设置|高级设置|关于
+    Gui, Settings:Add, Tab3, x10 y10 w500 h520 vTabControl gTabChange, 基本设置|高级设置|关于
     
     Gui, Settings:Tab, 基本设置
     
@@ -295,19 +303,26 @@ ShowSettingsWindow() {
     Gui, Settings:Add, Checkbox, x30 y70 vAutoStart gAutoStartChanged, 开机自启动
     Gui, Settings:Add, Button, x300 y66 w110 h24 gOpenStartupFolder, 打开启动文件夹
 
-    Gui, Settings:Add, GroupBox, x20 y140 w480 h160, Alt+左键避让
+    Gui, Settings:Add, GroupBox, x20 y140 w480 h160, Alt+左键 避让
     Gui, Settings:Add, Text, x30 y165 w460 h20, 排除进程名（逗号分隔，如 game.exe, steam.exe）
     Gui, Settings:Add, Edit, x30 y190 w460 h20 vAltMoveExcludeProcessesEdit gAltMoveExcludeChanged
     Gui, Settings:Add, Text, x30 y220 w460 h20, 排除窗口类名（逗号分隔，如 UnityWndClass, UnrealWindow）
     Gui, Settings:Add, Edit, x30 y245 w460 h20 vAltMoveExcludeClassesEdit gAltMoveExcludeChanged
     Gui, Settings:Add, Button, x30 y270 w140 h24 gAltMovePickWindow, 选定当前窗口
+
+    Gui, Settings:Add, GroupBox, x20 y310 w480 h160, Alt+X 避让
+    Gui, Settings:Add, Text, x30 y335 w460 h20, 排除进程名（逗号分隔，如 game.exe, steam.exe）
+    Gui, Settings:Add, Edit, x30 y360 w460 h20 vAltXExcludeProcessesEdit gAltXExcludeChanged
+    Gui, Settings:Add, Text, x30 y390 w460 h20, 排除窗口类名（逗号分隔，如 UnityWndClass, UnrealWindow）
+    Gui, Settings:Add, Edit, x30 y415 w460 h20 vAltXExcludeClassesEdit gAltXExcludeChanged
+    Gui, Settings:Add, Button, x30 y440 w140 h24 gAltXPickWindow, 选定当前窗口
     
     Gui, Settings:Tab, 关于
     Gui, Settings:Add, Text, x20 y40 w480 h30 +Center, Windows Optimization for AHK
     Gui, Settings:Add, Text, x20 y80 w480 h200 +Wrap +Center, 版本：1.0`n`n作者：Yi
     
     UpdateSettingsUI()
-    Gui, Settings:Show, w520 h410
+    Gui, Settings:Show, w520 h580
     
     return
     
@@ -352,6 +367,15 @@ AltMoveExcludeChanged:
     SaveConfig()
 return
 
+AltXExcludeChanged:
+    global AltXExcludeProcesses, AltXExcludeClasses
+    global AltXExcludeProcessesEdit, AltXExcludeClassesEdit
+    Gui, Settings:Submit, NoHide
+    AltXExcludeProcesses := AltXExcludeProcessesEdit
+    AltXExcludeClasses := AltXExcludeClassesEdit
+    SaveConfig()
+return
+
 AltMovePickWindow:
     global SettingsGuiVisible
     global AltMoveExcludeProcesses, AltMoveExcludeClasses
@@ -376,6 +400,37 @@ AltMovePickWindow:
 
         GuiControl, Settings:, AltMoveExcludeProcessesEdit, %AltMoveExcludeProcesses%
         GuiControl, Settings:, AltMoveExcludeClassesEdit, %AltMoveExcludeClasses%
+        SaveConfig()
+    }
+
+    Gui, Settings:Show
+    SettingsGuiVisible := true
+return
+
+AltXPickWindow:
+    global SettingsGuiVisible
+    global AltXExcludeProcesses, AltXExcludeClasses
+    global AltXExcludeProcessesEdit, AltXExcludeClassesEdit
+
+    Gui, Settings:Hide
+    SettingsGuiVisible := false
+    ToolTip, 请点击要避让的窗口
+    Sleep, 200
+    KeyWait, LButton, D
+    KeyWait, LButton
+    ToolTip
+
+    CoordMode, Mouse, Screen
+    MouseGetPos, , , targetHwnd
+    if (targetHwnd) {
+        WinGet, processName, ProcessName, ahk_id %targetHwnd%
+        WinGetClass, className, ahk_id %targetHwnd%
+
+        AltXExcludeProcesses := AltMove_AppendList(AltXExcludeProcesses, processName)
+        AltXExcludeClasses := AltMove_AppendList(AltXExcludeClasses, className)
+
+        GuiControl, Settings:, AltXExcludeProcessesEdit, %AltXExcludeProcesses%
+        GuiControl, Settings:, AltXExcludeClassesEdit, %AltXExcludeClasses%
         SaveConfig()
     }
 
@@ -422,6 +477,8 @@ UpdateSettingsUI() {
     global AutoStart
     global AltMoveExcludeProcesses, AltMoveExcludeClasses
     global AltMoveExcludeProcessesEdit, AltMoveExcludeClassesEdit
+    global AltXExcludeProcesses, AltXExcludeClasses
+    global AltXExcludeProcessesEdit, AltXExcludeClassesEdit
     
     global PastePureTextCheck, WindowOnTopCheck, WindowCenterCheck, AltMoveCheck, PeekDesktopCheck
     global MinimizeWindowCheck, WindowToTrayCheck, BorderlessWindowCheck, SwitchProgramWindowsCheck
@@ -445,6 +502,8 @@ UpdateSettingsUI() {
 
     GuiControl, Settings:, AltMoveExcludeProcessesEdit, %AltMoveExcludeProcesses%
     GuiControl, Settings:, AltMoveExcludeClassesEdit, %AltMoveExcludeClasses%
+    GuiControl, Settings:, AltXExcludeProcessesEdit, %AltXExcludeProcesses%
+    GuiControl, Settings:, AltXExcludeClassesEdit, %AltXExcludeClasses%
 }
 
 AltMove_AppendList(list, value) {

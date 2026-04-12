@@ -3,6 +3,8 @@ SetWorkingDir %A_ScriptDir%
 
 global WindowToTray
 global WindowToTrayItems := []
+global AltXExcludeProcesses
+global AltXExcludeClasses
 
 WindowToTray_Init() {
     global WindowToTrayItems
@@ -28,12 +30,50 @@ if (!hwnd)
     return
 if (hwnd = A_ScriptHwnd)
     return
+if (WindowToTray_IsExcluded(hwnd))
+    return
 WinGetTitle, title, ahk_id %hwnd%
 if (title = "")
     title := WindowToTray_GetUntitledLabel()
 WindowToTray_Add(hwnd, title)
 WinHide, ahk_id %hwnd%
 return
+
+WindowToTray_IsExcluded(hwnd) {
+    global AltXExcludeProcesses, AltXExcludeClasses
+
+    if (AltXExcludeProcesses = "" && AltXExcludeClasses = "")
+        return false
+
+    WinGet, processName, ProcessName, ahk_id %hwnd%
+    WinGetClass, className, ahk_id %hwnd%
+
+    if (WindowToTray_MatchList(processName, AltXExcludeProcesses))
+        return true
+
+    if (WindowToTray_MatchList(className, AltXExcludeClasses))
+        return true
+
+    return false
+}
+
+WindowToTray_MatchList(value, list) {
+    if (list = "")
+        return false
+
+    StringLower, valueLower, value
+    StringLower, listLower, list
+
+    for index, item in StrSplit(listLower, ",") {
+        token := Trim(item)
+        if (token = "")
+            continue
+        if (valueLower = token)
+            return true
+    }
+
+    return false
+}
 
 WindowToTray_NoOp:
 return
