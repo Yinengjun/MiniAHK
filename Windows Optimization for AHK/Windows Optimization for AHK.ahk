@@ -46,21 +46,21 @@ InitFeatureModules() {
     global FeatureModules
     
     FeatureModules := []
-    FeatureModules.Push({var: "PastePureText",        name: "粘贴纯文本",           hotkey: "Ctrl+Shift+V",      default: 1, script: "PastePureText.ahk"})
-    FeatureModules.Push({var: "WindowOnTop",          name: "窗口置顶",             hotkey: "Ctrl+Shift+E",      default: 1, script: "WindowOnTop.ahk"})
-    FeatureModules.Push({var: "WindowCenter",         name: "窗口居中",             hotkey: "Alt+C",             default: 1, script: "WindowCenter.ahk"})
     FeatureModules.Push({var: "AltMove",              name: "移动窗口",             hotkey: "Alt+左键",          default: 1, script: "AltMove.ahk"})
-    FeatureModules.Push({var: "PeekDesktop",          name: "临时访问桌面",         hotkey: "Alt+D",            default: 1, script: "PeekDesktop.ahk"})
+    FeatureModules.Push({var: "WindowScaling",        name: "窗口缩放",             hotkey: "Ctrl+Shift+滚轮",   default: 1, script: "WindowScaling.ahk"})
+    FeatureModules.Push({var: "WindowSize",           name: "修改窗口尺寸",         hotkey: "Alt+Z",             default: 1, script: "WindowSize.ahk"})
+    FeatureModules.Push({var: "WindowCenter",         name: "窗口居中",             hotkey: "Alt+C",             default: 1, script: "WindowCenter.ahk"})
+    FeatureModules.Push({var: "WindowOnTop",          name: "窗口置顶",             hotkey: "Ctrl+Shift+E",      default: 1, script: "WindowOnTop.ahk"})
     FeatureModules.Push({var: "MinimizeWindow",       name: "最小化窗口",           hotkey: "Alt+A/M",           default: 1, script: "MinimizeWindow.ahk"})
     FeatureModules.Push({var: "WindowToTray",         name: "窗口收入托盘",         hotkey: "Alt+X / Ctrl+Shift+X", default: 1, script: "WindowToTray.ahk"})
-    FeatureModules.Push({var: "EnsureNumLock",        name: "确保启用Num Lock",     hotkey: "",                  default: 1, script: ""})
-    FeatureModules.Push({var: "BorderlessWindow",     name: "无边框化窗口",         hotkey: "Alt+B",             default: 1, script: "BorderlessWindow.ahk"})
-    FeatureModules.Push({var: "SwitchProgramWindows", name: "切换程序窗口",         hotkey: "Ctrl+Alt+滚轮",     default: 1, script: "SwitchProgramWindows.ahk"})
-    FeatureModules.Push({var: "WindowSize",           name: "修改窗口尺寸",         hotkey: "Alt+Z",             default: 1, script: "WindowSize.ahk"})
-    FeatureModules.Push({var: "PreventHibernation",   name: "防止休眠",             hotkey: "",                  default: 0, script: "PreventHibernation.ahk"})
-    FeatureModules.Push({var: "ReconstructionWindow", name: "重构窗口",             hotkey: "Alt+T",             default: 1, script: "ReconstructionWindow.ahk"})
-    FeatureModules.Push({var: "WindowScaling",        name: "窗口缩放",             hotkey: "Ctrl+Shift+滚轮",   default: 1, script: "WindowScaling.ahk"})
+    FeatureModules.Push({var: "BorderlessWindow",     name: "无边框化窗口",         hotkey: "Alt+B",             default: 0, script: "BorderlessWindow.ahk"})
     FeatureModules.Push({var: "ModifyWindowBorders",  name: "修改窗口边框",         hotkey: "Alt+右键",          default: 1, script: "ModifyWindowBorders.ahk"})
+    FeatureModules.Push({var: "ReconstructionWindow", name: "重构窗口",             hotkey: "Alt+T",             default: 1, script: "ReconstructionWindow.ahk"})
+    FeatureModules.Push({var: "SwitchProgramWindows", name: "切换程序窗口",         hotkey: "Ctrl+Alt+滚轮",     default: 1, script: "SwitchProgramWindows.ahk"})
+    FeatureModules.Push({var: "PeekDesktop",          name: "临时访问桌面",         hotkey: "Alt+D",             default: 1, script: "PeekDesktop.ahk"})
+    FeatureModules.Push({var: "PastePureText",        name: "粘贴纯文本",           hotkey: "Ctrl+Shift+V",      default: 1, script: "PastePureText.ahk"})
+    FeatureModules.Push({var: "PreventHibernation",   name: "防止休眠",             hotkey: "",                  default: 0, script: "PreventHibernation.ahk"})
+    FeatureModules.Push({var: "EnsureNumLock",        name: "确保启用Num Lock",     hotkey: "",                  default: 1, script: ""})
 }
 
 ; ========================
@@ -156,6 +156,9 @@ CreateTrayMenu() {
     Menu, Tray, Add
 
     for index, module in FeatureModules {
+        if (module.var = "SwitchProgramWindows" || module.var = "PastePureText" || module.var = "PreventHibernation")
+            Menu, Tray, Add
+
         menuText := module.name
         if (module.hotkey != "")
             menuText .= " (" . module.hotkey . ")"

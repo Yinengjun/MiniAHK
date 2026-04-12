@@ -1,9 +1,9 @@
-﻿; Alt+D temporary desktop access
+; Alt+D temporary desktop access
 
 global PeekDesktop
 
-global DP_MinimizeUsed := false
-global DP_WaitRestore := false
+global PD_MinimizeUsed := false
+global PD_WaitRestore := false
 
 #If (PeekDesktop && MasterSwitch)
 
@@ -18,16 +18,16 @@ PeekDesktop_ModeMonitor:
 return
 
 PeekDesktop_Toggle() {
-    global DP_WaitRestore, DP_MinimizeUsed
+    global PD_WaitRestore, PD_MinimizeUsed
 
-    if (DP_WaitRestore) {
+    if (PD_WaitRestore) {
         PeekDesktop_RestoreMinimized()
-        DP_WaitRestore := false
+        PD_WaitRestore := false
         SetTimer, PeekDesktop_ModeMonitor, Off
         return
     }
 
-    if (DP_MinimizeUsed) {
+    if (PD_MinimizeUsed) {
         PeekDesktop_RestoreMinimized()
         return
     }
@@ -37,53 +37,53 @@ PeekDesktop_Toggle() {
 }
 
 PeekDesktop_Cleanup(forceRestore := true) {
-    global DP_WaitRestore, DP_MinimizeUsed
+    global PD_WaitRestore, PD_MinimizeUsed
 
     SetTimer, PeekDesktop_ModeMonitor, Off
 
-    if (forceRestore && (DP_MinimizeUsed || DP_WaitRestore))
+    if (forceRestore && (PD_MinimizeUsed || PD_WaitRestore))
         PeekDesktop_RestoreMinimized()
 
-    DP_WaitRestore := false
+    PD_WaitRestore := false
 
     if (!forceRestore)
-        DP_MinimizeUsed := false
+        PD_MinimizeUsed := false
 }
 
 PeekDesktop_StartMinimize() {
-    global DP_MinimizeUsed, DP_WaitRestore
+    global PD_MinimizeUsed, PD_WaitRestore
 
-    DP_WaitRestore := false
+    PD_WaitRestore := false
     SetTimer, PeekDesktop_ModeMonitor, Off
 
     WinMinimizeAll
-    DP_MinimizeUsed := true
+    PD_MinimizeUsed := true
 }
 
 PeekDesktop_RestoreMinimized() {
-    global DP_MinimizeUsed
+    global PD_MinimizeUsed
 
-    if (!DP_MinimizeUsed)
+    if (!PD_MinimizeUsed)
         return
 
     WinMinimizeAllUndo
-    DP_MinimizeUsed := false
+    PD_MinimizeUsed := false
 }
 
 PeekDesktop_ArmDeferredRestore() {
-    global DP_MinimizeUsed, DP_WaitRestore
+    global PD_MinimizeUsed, PD_WaitRestore
 
-    if (!DP_MinimizeUsed)
+    if (!PD_MinimizeUsed)
         return
 
-    DP_WaitRestore := true
+    PD_WaitRestore := true
     SetTimer, PeekDesktop_ModeMonitor, 120
 }
 
 PeekDesktop_CheckDeferredRestore() {
-    global DP_WaitRestore
+    global PD_WaitRestore
 
-    if (!DP_WaitRestore) {
+    if (!PD_WaitRestore) {
         SetTimer, PeekDesktop_ModeMonitor, Off
         return
     }
@@ -96,7 +96,7 @@ PeekDesktop_CheckDeferredRestore() {
         return
 
     PeekDesktop_RestoreMinimized()
-    DP_WaitRestore := false
+    PD_WaitRestore := false
     SetTimer, PeekDesktop_ModeMonitor, Off
 }
 
