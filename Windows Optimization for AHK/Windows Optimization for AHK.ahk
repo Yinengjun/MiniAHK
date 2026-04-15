@@ -96,6 +96,7 @@ InitConfig() {
             IniWrite, %defaultVal%, %ConfigFile%, Settings, %varName%
         }
         IniWrite, 0, %ConfigFile%, Settings, AutoStart
+        IniWrite, Shell_TrayWnd`, Shell_SecondaryTrayWnd`, Progman`, WorkerW`, DV2ControlHost, %ConfigFile%, Settings, AltXExcludeClasses
     }
     
     IniRead, MasterSwitch, %ConfigFile%, Settings, MasterSwitch, 1
@@ -114,7 +115,7 @@ InitConfig() {
     IniRead, AltMoveExcludeProcesses, %ConfigFile%, Settings, AltMoveExcludeProcesses,
     IniRead, AltMoveExcludeClasses, %ConfigFile%, Settings, AltMoveExcludeClasses,
     IniRead, AltXExcludeProcesses, %ConfigFile%, Settings, AltXExcludeProcesses,
-    IniRead, AltXExcludeClasses, %ConfigFile%, Settings, AltXExcludeClasses,
+    IniRead, AltXExcludeClasses, %ConfigFile%, Settings, AltXExcludeClasses, Shell_TrayWnd`, Shell_SecondaryTrayWnd`, Progman`, WorkerW`, DV2ControlHost
     
     SetPreventHibernation(PreventHibernation)
 }
