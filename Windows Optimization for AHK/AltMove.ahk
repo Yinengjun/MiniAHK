@@ -15,11 +15,15 @@ global wx := 0, wy := 0
 global ww := 0, wh := 0
 
 ; ------------------------
-; Alt + 左键拖动窗口
+; Alt + 左键拖动窗口（由主脚本动态注册热键）
+; AltMove_Start：触发拖动
+; AltMove_End  ：释放监听（由主脚本派生的 ~<主键> Up / ~<修饰> Up 共用）
 ; ------------------------
-#If (AltMove && MasterSwitch && AltMove_IsAllowed())
-!LButton::
-{
+AltMove_Start:
+    if (!AltMove || !MasterSwitch)
+        return
+    if (!AltMove_IsAllowed())
+        return
     if (dragging)  ; 已经在拖动中，不重复安装钩子
         return
 
@@ -33,21 +37,15 @@ global ww := 0, wh := 0
     ; 安装鼠标钩子
     hook := SetMouseHook()
     dragging := true
-}
 return
 
-~LButton Up::
-~Alt Up::
-{
+AltMove_End:
     if (dragging) {
         RemoveMouseHook(hook)
         hook := 0
         dragging := false
     }
-}
 return
-
-#If  ; 结束 #If 块，使后面的热键不受影响
 
 ; ------------------------
 ; 钩子函数

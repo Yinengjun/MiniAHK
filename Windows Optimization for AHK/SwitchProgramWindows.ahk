@@ -5,14 +5,15 @@ SendMode Input
 
 global SwitchProgramWindows
 
-; Ctrl+Alt+鼠标滚轮
-^!WheelUp::
+; 切换到同进程的上一个窗口（由主脚本动态注册热键）
+SwitchProgramWindows_Prev:
     if (!SwitchProgramWindows || !MasterSwitch)
         return
     SwitchAppWindow("Up")
 return
 
-^!WheelDown::
+; 切换到同进程的下一个窗口（由主脚本动态注册热键）
+SwitchProgramWindows_Next:
     if (!SwitchProgramWindows || !MasterSwitch)
         return
     SwitchAppWindow("Down")

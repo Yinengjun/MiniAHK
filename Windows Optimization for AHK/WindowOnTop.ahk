@@ -1,9 +1,9 @@
-﻿^+e::                          ; Ctrl + Shift + E
-global WindowOnTop
-if (!WindowOnTop || !MasterSwitch)
-    return
+﻿; 切换当前活动窗口置顶状态（由主脚本动态注册热键）
+WindowOnTop_Toggle:
+    global WindowOnTop
+    if (!WindowOnTop || !MasterSwitch)
+        return
 
-WinSet, AlwaysOnTop,, A        ; 切换当前活动窗口置顶状态
-; SoundBeep, 500, 150            ; 播放提示音
-DllCall("user32.dll\MessageBeep", "UInt", 0xFFFFFFFF)
-return                         ;
+    WinSet, AlwaysOnTop,, A
+    DllCall("user32.dll\MessageBeep", "UInt", 0xFFFFFFFF)
+return

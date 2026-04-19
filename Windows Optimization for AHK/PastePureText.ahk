@@ -1,9 +1,8 @@
-﻿^+v::
-{
+﻿PastePureText_Paste:
     global PastePureText   ; 让这个变量和入口文件的全局变量连接
     if (!PastePureText || !MasterSwitch)
         return
-        
+
     ; 备份剪贴板
     ClipSaved := ClipboardAll
     ; 将剪贴板内容改为纯文本
@@ -19,7 +18,5 @@
     ; 释放变量占用
     VarSetCapacity(ClipSaved, 0)
     ; 播放提示音
-    ; SoundBeep, 700, 150
-	DllCall("user32.dll\MessageBeep", "UInt", 0xFFFFFFFF)
-    return
-}
+    DllCall("user32.dll\MessageBeep", "UInt", 0xFFFFFFFF)
+return

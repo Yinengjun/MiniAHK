@@ -14,29 +14,29 @@ WindowToTray_Init() {
     OnMessage(0x404, "WindowToTray_TrayClick")
 }
 
-; Ctrl+Shift+X -> 在鼠标位置弹出已隐藏窗口菜单
-^+x::
-if (!WindowToTray || !MasterSwitch)
-    return
-Menu, WindowToTrayMenu, Show
+; 显示已隐藏窗口菜单（由主脚本动态注册热键，默认 Ctrl+Shift+X）
+WindowToTray_ShowMenu:
+    if (!WindowToTray || !MasterSwitch)
+        return
+    Menu, WindowToTrayMenu, Show
 return
 
-; Alt + X -> 将当前活动窗口放到托盘
-!x::
-if (!WindowToTray || !MasterSwitch)
-    return
-WinGet, hwnd, ID, A
-if (!hwnd)
-    return
-if (hwnd = A_ScriptHwnd)
-    return
-if (WindowToTray_IsExcluded(hwnd))
-    return
-WinGetTitle, title, ahk_id %hwnd%
-if (title = "")
-    title := WindowToTray_GetUntitledLabel()
-WindowToTray_Add(hwnd, title)
-WinHide, ahk_id %hwnd%
+; 将当前活动窗口放到托盘（由主脚本动态注册热键，默认 Alt+X）
+WindowToTray_Hide:
+    if (!WindowToTray || !MasterSwitch)
+        return
+    WinGet, hwnd, ID, A
+    if (!hwnd)
+        return
+    if (hwnd = A_ScriptHwnd)
+        return
+    if (WindowToTray_IsExcluded(hwnd))
+        return
+    WinGetTitle, title, ahk_id %hwnd%
+    if (title = "")
+        title := WindowToTray_GetUntitledLabel()
+    WindowToTray_Add(hwnd, title)
+    WinHide, ahk_id %hwnd%
 return
 
 WindowToTray_IsExcluded(hwnd) {

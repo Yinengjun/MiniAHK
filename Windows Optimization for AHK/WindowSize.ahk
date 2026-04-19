@@ -15,12 +15,12 @@ global AddModeRefill := false
 global WindowSize := 1
 
 ; ========================
-; 热键
+; 打开尺寸预设菜单（由主脚本动态注册热键）
 ; ========================
-!z::   ; Alt + Z
+WindowSize_Menu:
     if (!WindowSize)
         return
-        
+
     IniRead, master, %ConfigFile%, Settings, MasterSwitch, 1
     if (master = 0)
         return

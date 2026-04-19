@@ -1,4 +1,5 @@
-﻿!c::  ; Alt+C 窗口居中
+﻿; 窗口居中（由主脚本动态注册热键）
+WindowCenter_Apply:
     global WindowCenter
     if (!WindowCenter || !MasterSwitch)
         return

@@ -1,13 +1,12 @@
 ﻿; -----------------------------
-; Alt + B 切换当前窗口的无边框化 / 完全复原
+; 切换当前窗口的无边框化 / 完全复原（由主脚本动态注册热键）
 ; -----------------------------
 
-!b::  ; Alt + B
-{
+BorderlessWindow_Toggle:
     global BorderlessWindow
     if (!BorderlessWindow || !MasterSwitch)
         return
-  
+
     WinGet, style, Style, A  ; 获取当前活动窗口的样式
 
     ; 使用窗口的 HWND 作为唯一标识存储尺寸
@@ -41,4 +40,4 @@
             WinPos.Delete(hwnd)  ; 删除记录，防止内存占用
         }
     }
-}
+return

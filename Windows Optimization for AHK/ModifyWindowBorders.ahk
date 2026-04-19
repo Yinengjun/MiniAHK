@@ -40,14 +40,14 @@ global MWB_ScreenTop := 0
 global MWB_ScreenRight := 0
 global MWB_ScreenBottom := 0
 
-; Alt + 鼠标右键开始编辑
-#If (ModifyWindowBorders && MasterSwitch)
-Alt & RButton::
+; 修改边框启动（由主脚本动态注册热键，默认 Alt & RButton）
+ModifyWindowBorders_Start:
+    if (!ModifyWindowBorders || !MasterSwitch)
+        return
     if (!MWB_EditMode) {
         MWB_StartEditMode()
     }
 return
-#If
 
 ; 开始编辑模式
 MWB_StartEditMode() {

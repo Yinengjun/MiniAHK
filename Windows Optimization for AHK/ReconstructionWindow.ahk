@@ -11,11 +11,13 @@ global x1, y1, x2, y2, xm, ym, w, h
 global dragging, borderWidth, hwndOverlay
 
 ; -------------------------
-; 热键：Alt+T 启动重构窗口模式
+; 启动重构窗口模式（由主脚本动态注册热键）
 ; -------------------------
-#If (ReconstructionWindow && MasterSwitch)
-!t::Gosub, StartReconstruction
-#If
+ReconstructionWindow_Start:
+    if (!ReconstructionWindow || !MasterSwitch)
+        return
+    Gosub, StartReconstruction
+return
 
 ; -------------------------
 ; 主流程
@@ -112,9 +114,9 @@ UpdateBorder:
 return
 
 ; -------------------------
-; ESC键取消操作
+; ESC键取消操作（由主脚本以 ~Esc 注册为内部键，始终有效）
 ; -------------------------
-~Esc::
+ReconstructionWindow_Cancel:
 if (dragging) {
     dragging := false
     SetTimer, UpdateBorder, Off

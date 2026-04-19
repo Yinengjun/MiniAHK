@@ -1,17 +1,15 @@
-; Alt+D temporary desktop access
+﻿; Alt+D temporary desktop access
 
 global PeekDesktop
 
 global PD_MinimizeUsed := false
 global PD_WaitRestore := false
 
-#If (PeekDesktop && MasterSwitch)
-
-!d::
+PeekDesktop_Trigger:
+    if (!PeekDesktop || !MasterSwitch)
+        return
     PeekDesktop_Toggle()
 return
-
-#If
 
 PeekDesktop_ModeMonitor:
     PeekDesktop_CheckDeferredRestore()

@@ -69,7 +69,10 @@ InitFeatureModules() {
 ; 初始化
 ; ========================
 InitFeatureModules()
+InitActionTable()
 InitConfig()
+HotkeyRegister_InitAll()
+RefreshTrayHotkeyLabels()
 EnsureNumLock_Init()
 WindowToTray_Init()
 CreateTrayMenu()
@@ -266,7 +269,7 @@ ShowSettingsWindow() {
     Gui, Settings:New, +Resize, 程序设置
     Gui, Settings:Font, s10
     
-    Gui, Settings:Add, Tab3, x10 y10 w500 h520 vTabControl gTabChange, 基本设置|高级设置|关于
+    Gui, Settings:Add, Tab3, x10 y10 w500 h620 vTabControl gTabChange, 基本设置|快捷键|高级设置|关于
     
     Gui, Settings:Tab, 基本设置
     
@@ -298,7 +301,9 @@ ShowSettingsWindow() {
         
         Gui, Settings:Add, Checkbox, x%xPos% y%yPos% w200 h20 v%varName% g%handlerName%, %checkText%
     }
-    
+
+    BuildHotkeyTab()
+
     Gui, Settings:Tab, 高级设置
     Gui, Settings:Add, GroupBox, x20 y40 w480 h90, 开机自启动
     Gui, Settings:Add, Checkbox, x30 y70 vAutoStart gAutoStartChanged, 开机自启动
@@ -323,8 +328,8 @@ ShowSettingsWindow() {
     Gui, Settings:Add, Text, x20 y80 w480 h200 +Wrap +Center, 版本：1.0`n`n作者：Yi
     
     UpdateSettingsUI()
-    Gui, Settings:Show, w520 h580
-    
+    Gui, Settings:Show, w520 h640
+
     return
     
     SettingsGuiClose:
@@ -602,8 +607,17 @@ OpenStartupFolder:
 return
 
 ; ========================
+; 热键注册闸门：本 #If 条件必须静态存在，供运行时 Hotkey, If, ... 引用
+; vk07 是未分配虚拟键，不会被真实键触发，仅用于占位
+; ========================
+#If IsHotkeyEnabled(A_ThisHotkey)
+vk07::return
+#If
+
+; ========================
 ; 引入模块
 ; ========================
+#Include %A_ScriptDir%\Hotkeys.ahk
 #Include %A_ScriptDir%\PastePureText.ahk
 #Include %A_ScriptDir%\WindowOnTop.ahk
 #Include %A_ScriptDir%\WindowCenter.ahk

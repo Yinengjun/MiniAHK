@@ -10,19 +10,19 @@ global g_ExcludedClasses := ["Shell_TrayWnd", "DV2ControlHost", "MsgrIMEWindowCl
     , "ApplicationFrameWindow", "Windows.UI.Core.CoreWindow", "ImmersiveLauncher"
     , "ImmersiveBackground", "EdgeUiInputTopWndClass", "NativeHWNDHost"]
 
-#If (WindowScaling && MasterSwitch)
-
-; Ctrl+Shift+滚轮向上 - 放大窗口
-^+WheelUp::
+; 放大窗口（由主脚本动态注册热键）
+WindowScaling_Up:
+    if (!WindowScaling || !MasterSwitch)
+        return
     HandleWindowScale(1 + g_ScaleStep)
 return
 
-; Ctrl+Shift+滚轮向下 - 缩小窗口  
-^+WheelDown::
+; 缩小窗口（由主脚本动态注册热键）
+WindowScaling_Down:
+    if (!WindowScaling || !MasterSwitch)
+        return
     HandleWindowScale(1 - g_ScaleStep)
 return
-
-#If
 
 ; 处理窗口缩放请求
 HandleWindowScale(scaleFactor) {
