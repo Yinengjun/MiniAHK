@@ -48,6 +48,7 @@ global HKRow_WindowScaling_Down_Key := ""
 global HKRow_WindowSize_Menu_Key := ""
 global HKRow_WindowToTray_Hide_Key := ""
 global HKRow_WindowToTray_ShowMenu_Key := ""
+global HKRow_LockClose_Toggle_Key := ""
 
 ; 捕获对话框的控件变量
 global HKCapCtrl := 0
@@ -74,6 +75,7 @@ InitActionTable() {
     Push_Action("MinimizeWindow_Wheel",      "MinimizeWindow",       "!WheelDown",    "MinimizeWindow_Wheel",       "滚轮最小化",     "wheel",  true)
     Push_Action("WindowToTray_Hide",         "WindowToTray",         "!x",            "WindowToTray_Hide",          "隐藏窗口到托盘", "key",    true)
     Push_Action("WindowToTray_ShowMenu",     "WindowToTray",         "^+x",           "WindowToTray_ShowMenu",      "显示托盘菜单",   "key",    true)
+    Push_Action("LockClose_Toggle",          "LockClose",            "^+l",           "LockClose_Toggle",           "锁定/解锁当前窗口", "key", true)
     Push_Action("BorderlessWindow_Toggle",   "BorderlessWindow",     "!b",            "BorderlessWindow_Toggle",    "切换无边框",     "key",    true)
     Push_Action("ModifyWindowBorders_Start", "ModifyWindowBorders",  "Alt & RButton", "ModifyWindowBorders_Start",  "修改边框启动",   "combo",  false) ; 锁定
     Push_Action("ReconstructionWindow_Start","ReconstructionWindow", "!t",            "ReconstructionWindow_Start", "开始重构窗口",   "key",    true)
@@ -103,7 +105,7 @@ IsHotkeyEnabled(hk) {
     global AltMove, BorderlessWindow, MinimizeWindow, ModifyWindowBorders
     global PastePureText, PeekDesktop, ReconstructionWindow
     global SwitchProgramWindows, WindowCenter, WindowOnTop
-    global WindowScaling, WindowSize, WindowToTray
+    global WindowScaling, WindowSize, WindowToTray, LockClose
     if (!MasterSwitch)
         return false
     feature := g_HotkeyToFeature[hk]
@@ -949,6 +951,16 @@ HKEdit_WindowToTray_ShowMenu:
 return
 HKReset_WindowToTray_ShowMenu:
     HotkeyRegister_ResetOne("WindowToTray_ShowMenu")
+    UpdateHotkeyTabUI()
+    RefreshTrayHotkeyLabels()
+    CreateTrayMenu()
+return
+
+HKEdit_LockClose_Toggle:
+    HotkeyCapture_Show("LockClose_Toggle")
+return
+HKReset_LockClose_Toggle:
+    HotkeyRegister_ResetOne("LockClose_Toggle")
     UpdateHotkeyTabUI()
     RefreshTrayHotkeyLabels()
     CreateTrayMenu()
